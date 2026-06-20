@@ -103,26 +103,27 @@ runs `npm install && npm run build`, then `npm start`, and injects `PORT`.
 
 ## What to check
 
-- **Retro UI on a near-black page:** white double-bordered panels with a hard
-  Base-blue card lift, monospace headings/labels/buttons, a tab nav (How it works
-  / About / ?), chunky raised buttons. There is no Demo tab and no step box; the
-  scene is always shown.
+- **Refined retro UI on a near-black page:** white double-bordered panels with
+  thin borders and a light Base-blue card lift (about half the previous weight),
+  monospace headings/labels/buttons. No tab bar, no step box; the scene is always
+  shown.
 - **Title and subtitle:** "AGENT PAYS AGENT" with "The agent pays. The Ledger
   device signs. Built on x402 + the Ledger Agent Stack."
 - **Robots:** Buyo (azure) and Sella (teal), cute limbed pixel robots that walk
   in from the edges and meet on a Base-blue stage. Reduced motion appears in place.
-- **Ledger Signer card:** a branded signing surface with a LEDGER header that
-  lists exactly what is being signed (action, amount, recipient, network) from
-  the real EIP-712 message; press and hold to sign produces a short signature
-  hash; Reject leads to a friendly cancelled beat.
-- **Ledger-forward copy:** the About and How it works sections explain the Ledger
-  Agent Stack idea (the agent proposes, the Ledger device signs) and name the
-  Ledger Device Management Kit and Ledger Ethereum Signer Kit. How it works lives
-  at the bottom of the page.
-- **Honesty:** the 402 is real; the EIP-712 message is real; the signature is
-  simulated in this build and the subtle phase-aware note says so (it switches to
-  the real-Ledger wording when `USE_REAL_SIGNER=true`). Tone stays complementary
-  to x402 and Coinbase. No em dashes.
+- **Ledger Signer card:** a clean header that simply reads "Ledger Signer" (no
+  bracket mark, no CLEAR SIGNING sub-bar), then the human-readable fields (action,
+  amount, recipient, network) from the real EIP-712 message; press and hold to
+  sign produces a short signature hash; Reject leads to a friendly cancelled beat.
+- **Bottom accordion:** a single box near the bottom with collapsible "How it
+  works", "About", and "?" rows. Each expands on click. The Ledger Agent Stack
+  copy (agent proposes, Ledger device signs) and the Ledger Device Management Kit
+  and Ledger Ethereum Signer Kit are named inside.
+- **Honesty at the very bottom:** the "Paid with x402..." wrap line and the
+  subtle phase-aware note (signature simulated in this build, switches to the
+  real-Ledger wording when `USE_REAL_SIGNER=true`) are the last thing on the page.
+  The 402 and the EIP-712 message are real. Tone stays complementary to x402 and
+  Coinbase. No em dashes.
 
 ## Brand palette
 

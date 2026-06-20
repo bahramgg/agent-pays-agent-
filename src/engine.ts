@@ -63,24 +63,12 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const cap = (s: string) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
 const interpolate = (text: string) => text.replace(/\{(\w+)\}/g, (_, k) => ctx.values[k] ?? "");
 
-// ---- tabs (the bottom info sections) --------------------------------------
-const TABS: Record<string, [string, string]> = {
-  how: ["tabHow", "viewHow"],
-  about: ["tabAbout", "viewAbout"],
-  help: ["tabHelp", "viewHelp"],
-};
-function setTab(name: string, scroll = false): void {
-  let target: HTMLElement | null = null;
-  for (const [key, [tab, view]] of Object.entries(TABS)) {
-    const on = key === name;
-    el(tab).classList.toggle("is-active", on);
-    el(tab).setAttribute("aria-selected", String(on));
-    el(view).classList.toggle("is-active", on);
-    el(view).toggleAttribute("hidden", !on);
-    if (on) target = el(view);
-  }
-  if (scroll && target) {
-    target.scrollIntoView({ behavior: reducedMotion ? "auto" : "smooth", block: "start" });
+// ---- bottom accordion -----------------------------------------------------
+function openHowItWorks(): void {
+  const item = document.getElementById("accHow");
+  if (item instanceof HTMLDetailsElement) {
+    item.open = true;
+    item.scrollIntoView({ behavior: reducedMotion ? "auto" : "smooth", block: "start" });
   }
 }
 
@@ -220,7 +208,7 @@ async function goTo(id: string): Promise<void> {
   if (busy) return;
 
   if (id === "__explain") {
-    setTab("how", true);
+    openHowItWorks();
     return;
   }
   if (id === "__restart") {
@@ -348,12 +336,6 @@ export async function startEngine(): Promise<void> {
   sellaActor = new SpriteActor(el("sellaSprite"), "sella");
 
   initClearSign();
-
-  for (const name of Object.keys(TABS)) {
-    const [tab] = TABS[name];
-    el<HTMLButtonElement>(tab).addEventListener("click", () => setTab(name, true));
-  }
-  setTab("how");
 
   await playEntrance();
 
