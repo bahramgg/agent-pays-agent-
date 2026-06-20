@@ -1,6 +1,7 @@
 /* ==========================================================================
-   Agent Pays Agent — Phase 0 style system
-   Mobile-first. Base brand palette. True pixel-art rendering: hard edges only.
+   Agent Pays Agent — style system (Phases 0-3)
+   Mobile-first. Base brand palette. True pixel-art rendering: hard edges only,
+   no soft gradients, blur, or soft shadows.
    ========================================================================== */
 
 :root {
@@ -9,16 +10,20 @@
   --white: #ffffff;
   --near-black: #0a0b0d;
 
-  /* Derived accent kept within the brand (flat tint, no gradients). */
-  --base-blue-dark: #0040c8; /* flat darker blue for pixel depth */
+  /* Flat brand tints (no gradients, just solid steps). */
+  --base-blue-dark: #0040c8;
+  --base-blue-light: #3d7bff;
+  --gold: #f5b301; /* coin accent only */
 
   /* --- Type -------------------------------------------------------------- */
   --font-pixel: "Press Start 2P", monospace;
   --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas,
     monospace;
+  /* Clean, readable sans for longer explanatory copy. */
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial,
+    sans-serif;
 
   /* --- Pixel grid -------------------------------------------------------- */
-  /* One "pixel unit" — scale sprites/spacing in whole multiples of this. */
   --px: 4px;
 
   color-scheme: dark;
@@ -32,93 +37,488 @@ html,
 body {
   margin: 0;
   padding: 0;
-  height: 100%;
 }
 
 body {
-  background-color: var(--base-blue); /* Base Blue dominates the screen */
+  background-color: var(--base-blue); /* Base Blue dominates */
   color: var(--white);
   font-family: var(--font-mono);
-  /* Crisp text: no anti-alias softening beyond what's needed to read. */
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
-  /* Disable any inherited smoothing on scaled raster content. */
-  image-rendering: pixelated;
   overflow-x: hidden;
 }
 
-/* --- Layout: mobile-first, centered single screen ------------------------ */
-.screen {
-  min-height: 100svh; /* small-viewport unit: avoids mobile URL-bar jump */
+/* Every drawn sprite: hard, blocky upscaling. */
+.pixel-canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges; /* Firefox fallback */
+}
+
+/* --- Page shell: mobile-first, single centered column -------------------- */
+.page {
+  min-height: 100svh;
   min-height: 100vh; /* fallback */
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
+  gap: clamp(20px, 5vh, 36px);
+  width: 100%;
+  max-width: 960px;
+  margin: 0 auto;
   padding: clamp(20px, 6vw, 48px);
-  /* Respect notches / safe areas on mobile. */
   padding-top: max(clamp(20px, 6vw, 48px), env(safe-area-inset-top));
   padding-bottom: max(clamp(20px, 6vw, 48px), env(safe-area-inset-bottom));
 }
 
-.stage {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
+/* --- Masthead ------------------------------------------------------------ */
+.masthead {
   text-align: center;
-  gap: clamp(20px, 5vh, 40px);
-  width: 100%;
-  max-width: 720px;
 }
 
-/* --- The pixel sprite ---------------------------------------------------- */
-/* Rendered tiny on the canvas, scaled up here with hard, blocky pixels. */
-.sprite {
-  width: clamp(112px, 38vw, 224px); /* whole-multiple feel; scales smoothly */
-  height: auto;
-  image-rendering: pixelated;
-  image-rendering: crisp-edges; /* Firefox keyword fallback */
-  /* Flat blocky frame — no soft shadow. */
-  background: var(--near-black);
-  border: var(--px) solid var(--near-black);
-  /* Hard offset block "shadow": a flat dark square, never a blur. */
-  box-shadow: var(--px) var(--px) 0 0 var(--near-black);
-}
-
-/* --- Typography ---------------------------------------------------------- */
 .title {
   font-family: var(--font-pixel);
-  /* Pixel fonts get unreadable when large on small screens — clamp tightly. */
-  font-size: clamp(18px, 7vw, 40px);
+  font-size: clamp(16px, 6.5vw, 36px);
   line-height: 1.3;
   letter-spacing: 0.02em;
   margin: 0;
   color: var(--white);
-  /* Hard pixel "drop shadow": single flat offset, zero blur. */
   text-shadow: var(--px) var(--px) 0 var(--near-black);
 }
 
 .subtitle {
   font-family: var(--font-pixel);
-  font-size: clamp(8px, 2.6vw, 13px);
-  line-height: 1.8;
-  letter-spacing: 0.02em;
-  margin: 0;
-  /* Slightly recessed: near-black on blue reads as a flat secondary line. */
+  font-size: clamp(8px, 2.4vw, 12px);
+  line-height: 1.7;
+  margin: 8px 0 0;
   color: var(--near-black);
 }
 
-/* --- Desktop / larger screens ------------------------------------------- */
-/* Mobile-first: only adjust rhythm at width, never re-layout from scratch. */
+/* ==========================================================================
+   SCENE
+   ========================================================================== */
+.scene {
+  position: relative; /* anchor for the moving-token layer */
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: clamp(20px, 5vh, 40px);
+}
+
+/* --- Actors row: stacked on mobile, spread wide on desktop --------------- */
+.actors {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: clamp(16px, 4vh, 28px);
+}
+
+.actor,
+.service {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 6px;
+}
+
+/* Framed dark tiles so the blue sprites read against the blue background. */
+.sprite-box {
+  background: var(--near-black);
+  border: var(--px) solid var(--near-black);
+  box-shadow: var(--px) var(--px) 0 0 var(--near-black);
+  line-height: 0;
+}
+
+.sprite-box--actor {
+  width: clamp(84px, 24vw, 128px);
+}
+.sprite-box--service {
+  width: clamp(68px, 18vw, 104px);
+}
+.sprite-box--facilitator {
+  width: clamp(64px, 17vw, 96px);
+}
+
+.actor__name {
+  font-family: var(--font-pixel);
+  font-size: clamp(9px, 2.6vw, 13px);
+  margin-top: 4px;
+}
+.actor__role {
+  font-family: var(--font-pixel);
+  font-size: clamp(7px, 2vw, 10px);
+  color: var(--near-black);
+}
+.actor__addr {
+  font-family: var(--font-mono);
+  font-size: clamp(9px, 2.2vw, 12px);
+  opacity: 0.85;
+}
+.actor__addr code,
+.facilitator__status code {
+  color: var(--white);
+}
+
+.service__name {
+  font-family: var(--font-pixel);
+  font-size: clamp(9px, 2.6vw, 13px);
+  margin-top: 4px;
+}
+.service__price {
+  font-family: var(--font-mono);
+  font-size: clamp(9px, 2.2vw, 12px);
+  background: var(--near-black);
+  color: var(--white);
+  padding: 3px 6px;
+}
+
+/* --- Gate: Ledger device + facilitator ----------------------------------- */
+.gate {
+  width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: flex-end;
+  gap: clamp(20px, 6vw, 56px);
+}
+
+.ledger,
+.facilitator {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.sprite-box--ledger {
+  position: relative; /* anchor screen + stamp over the device canvas */
+  width: clamp(180px, 64vw, 300px);
+}
+
+.gate__label,
+.facilitator__name {
+  font-family: var(--font-pixel);
+  font-size: clamp(7px, 2vw, 10px);
+  color: var(--near-black);
+}
+
+/* The Ledger screen overlay sits exactly over the device's recessed screen. */
+.ledger__screen {
+  position: absolute;
+  left: 13%;
+  right: 26%;
+  top: 31%;
+  bottom: 31%;
+  background: var(--near-black); /* screen off */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px 4px;
+  overflow: hidden;
+}
+.ledger__screen.is-lit {
+  background: var(--base-blue); /* screen on: flat blue glow, no blur */
+}
+.ledger__screen-text {
+  font-family: var(--font-pixel);
+  font-size: clamp(5px, 1.5vw, 8px);
+  line-height: 1.5;
+  color: var(--white);
+  text-align: center;
+  word-break: break-word;
+}
+
+/* The "SIGNED" stamp that pops over the device on approval. */
+.ledger__stamp {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(-12deg);
+  font-family: var(--font-pixel);
+  font-size: clamp(10px, 3.4vw, 18px);
+  color: var(--white);
+  background: var(--base-blue-dark);
+  border: var(--px) solid var(--white);
+  padding: 4px 8px;
+  letter-spacing: 0.04em;
+  animation: stamp-pop 240ms steps(4, end) both;
+}
+
+.facilitator.is-active .sprite-box--facilitator {
+  box-shadow: 0 0 0 var(--px) var(--white);
+}
+.facilitator__status {
+  font-family: var(--font-mono);
+  font-size: clamp(9px, 2.2vw, 12px);
+  min-height: 1.2em;
+  text-align: center;
+}
+
+.settled-block {
+  width: clamp(40px, 12vw, 64px);
+  margin-top: 4px;
+}
+
+/* --- Moving token layer -------------------------------------------------- */
+.tokens {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 5;
+}
+.token {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: clamp(30px, 9vw, 46px);
+  opacity: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  will-change: transform;
+}
+.token__label {
+  font-family: var(--font-pixel);
+  font-size: clamp(6px, 1.7vw, 9px);
+  white-space: nowrap;
+  background: var(--near-black);
+  color: var(--white);
+  padding: 2px 4px;
+}
+.token--pop {
+  animation: pop 240ms steps(4, end) both;
+}
+
+/* ==========================================================================
+   CAPTION
+   ========================================================================== */
+.caption {
+  width: 100%;
+  max-width: 760px;
+  min-height: 3.4em;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  font-family: var(--font-pixel);
+  font-size: clamp(8px, 2.3vw, 12px);
+  line-height: 1.7;
+  color: var(--white);
+  background: var(--near-black);
+  border: var(--px) solid var(--near-black);
+  box-shadow: var(--px) var(--px) 0 0 var(--base-blue-dark);
+  padding: clamp(10px, 3vw, 16px);
+}
+
+/* ==========================================================================
+   CONTROLS
+   ========================================================================== */
+.controls {
+  width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: clamp(12px, 3vw, 20px);
+}
+
+.btn {
+  font-family: var(--font-pixel);
+  font-size: clamp(10px, 2.8vw, 15px);
+  line-height: 1.4;
+  cursor: pointer;
+  border: var(--px) solid var(--near-black);
+  padding: clamp(12px, 3.4vw, 18px) clamp(16px, 5vw, 28px);
+  letter-spacing: 0.02em;
+  transition: transform 80ms steps(2, end);
+}
+.btn:active {
+  transform: translate(var(--px), var(--px));
+}
+.btn:focus-visible {
+  outline: var(--px) solid var(--white);
+  outline-offset: var(--px);
+}
+
+/* Primary: solid white block with a hard near-black shadow. */
+.btn--run {
+  background: var(--white);
+  color: var(--base-blue);
+  box-shadow: var(--px) var(--px) 0 0 var(--near-black);
+}
+.btn--run:disabled {
+  cursor: progress;
+  color: var(--base-blue-dark);
+  opacity: 0.85;
+}
+
+/* Ghost: outlined block on the blue field. */
+.btn--ghost {
+  background: var(--near-black);
+  color: var(--white);
+  box-shadow: var(--px) var(--px) 0 0 var(--base-blue-dark);
+}
+
+/* ==========================================================================
+   EXPLANATION PANEL (readable, non-pixel font)
+   ========================================================================== */
+.explain {
+  width: 100%;
+  max-width: 760px;
+  background: var(--white);
+  color: var(--near-black);
+  border: var(--px) solid var(--near-black);
+  box-shadow: var(--px) var(--px) 0 0 var(--near-black);
+  padding: clamp(18px, 5vw, 32px);
+  font-family: var(--font-sans);
+}
+.explain__title {
+  font-family: var(--font-pixel);
+  font-size: clamp(12px, 3.4vw, 18px);
+  color: var(--base-blue);
+  margin: 0 0 14px;
+}
+.explain__intro {
+  font-size: clamp(14px, 2.6vw, 17px);
+  line-height: 1.6;
+  margin: 0 0 16px;
+}
+.explain__steps {
+  margin: 0;
+  padding-left: 1.4em;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  font-size: clamp(14px, 2.6vw, 16px);
+  line-height: 1.6;
+}
+.explain__steps strong {
+  color: var(--base-blue);
+}
+.explain__steps code,
+.explain__intro code {
+  font-family: var(--font-mono);
+  background: rgba(0, 82, 255, 0.1);
+  padding: 1px 4px;
+}
+.explain__note {
+  margin: 18px 0 0;
+  font-size: clamp(13px, 2.4vw, 15px);
+  line-height: 1.6;
+  color: var(--base-blue-dark);
+  border-top: 2px solid rgba(10, 11, 13, 0.15);
+  padding-top: 14px;
+}
+
+/* ==========================================================================
+   OUTRO: verdict + friendly + honesty tag
+   ========================================================================== */
+.outro {
+  width: 100%;
+  max-width: 760px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.verdict {
+  font-family: var(--font-pixel);
+  font-size: clamp(9px, 2.6vw, 14px);
+  line-height: 1.7;
+  color: var(--white);
+  text-shadow: var(--px) var(--px) 0 var(--near-black);
+  margin: 0;
+}
+.friendly {
+  font-family: var(--font-sans);
+  font-size: clamp(13px, 2.6vw, 16px);
+  line-height: 1.6;
+  color: var(--white);
+  margin: 0;
+}
+.sim-tag {
+  font-family: var(--font-mono);
+  font-size: clamp(10px, 2.2vw, 12px);
+  color: var(--near-black);
+  margin: 0;
+  opacity: 0.85;
+}
+
+/* ==========================================================================
+   DESKTOP / WIDE: spread the actors, keep mobile-first structure intact
+   ========================================================================== */
 @media (min-width: 720px) {
-  .stage {
-    gap: 48px;
+  .actors {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: flex-start;
+  }
+  .service {
+    margin-top: clamp(8px, 2vw, 24px);
   }
 }
 
-/* Honor reduced-motion now so later animated phases inherit the contract. */
+/* ==========================================================================
+   ANIMATIONS (stepped, 8-bit feel)
+   ========================================================================== */
+@keyframes pop {
+  0% {
+    transform: scale(0);
+  }
+  60% {
+    transform: scale(1.15);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+@keyframes stamp-pop {
+  0% {
+    transform: translate(-50%, -50%) rotate(-12deg) scale(0);
+  }
+  60% {
+    transform: translate(-50%, -50%) rotate(-12deg) scale(1.15);
+  }
+  100% {
+    transform: translate(-50%, -50%) rotate(-12deg) scale(1);
+  }
+}
+
+@keyframes shake {
+  0%, 100% { transform: translate(0, 0); }
+  20% { transform: translate(-3px, 1px); }
+  40% { transform: translate(3px, -1px); }
+  60% { transform: translate(-2px, 2px); }
+  80% { transform: translate(2px, -2px); }
+}
+.ledger.is-signing .sprite-box--ledger {
+  animation: shake 320ms steps(2, end) 2;
+}
+.ledger.is-signing .ledger__screen.is-lit {
+  animation: screen-flash 160ms steps(1, end) 3;
+}
+@keyframes screen-flash {
+  0%, 100% { background: var(--base-blue); }
+  50% { background: var(--white); }
+}
+
+/* ==========================================================================
+   REDUCED MOTION: calmer version (the flow engine also shortens timings)
+   ========================================================================== */
 @media (prefers-reduced-motion: reduce) {
-  * {
+  .token--pop,
+  .ledger__stamp,
+  .ledger.is-signing .sprite-box--ledger,
+  .ledger.is-signing .ledger__screen.is-lit {
     animation: none !important;
-    transition: none !important;
+  }
+  .btn {
+    transition: none;
   }
 }
