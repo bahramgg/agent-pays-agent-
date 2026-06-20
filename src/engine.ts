@@ -1,8 +1,8 @@
 // The cartoon engine. Plays the walk-in entrance, interprets the scene script
 // (scene.ts), renders dialogue and choices, runs the x402 actions (payment.ts),
 // and hands the payment to the Ledger Stax review + hold-to-sign (ledger.ts).
-// Honest by construction: the wrap line and honesty tag adapt to whether the
-// signature is simulated or real.
+// It also drives the DEMO / HOW IT WORKS tabs. Honest by construction: the wrap
+// line and honesty tag adapt to whether the signature is simulated or real.
 
 import { SpriteActor } from "./actors.js";
 import { initLedger, runStaxReview, setIdle } from "./ledger.js";
@@ -43,10 +43,12 @@ function el<T extends HTMLElement = HTMLElement>(id: string): T {
   return node as T;
 }
 
+let sceneEl: HTMLElement;
 let dialogueBox: HTMLElement;
 let speakerName: HTMLElement;
 let dialogueText: HTMLElement;
 let choicesEl: HTMLElement;
+let staxPanel: HTMLElement;
 let buyoFig: HTMLElement;
 let sellaFig: HTMLElement;
 let buyoActor: SpriteActor;
@@ -62,6 +64,19 @@ const SPEAKER_LABEL: Record<Speaker, string> = {
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const cap = (s: string) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
 const interpolate = (text: string) => text.replace(/\{(\w+)\}/g, (_, k) => ctx.values[k] ?? "");
+
+// ---- tabs -----------------------------------------------------------------
+function setTab(name: "demo" | "how"): void {
+  const demo = name === "demo";
+  el("tabDemo").classList.toggle("is-active", demo);
+  el("tabHow").classList.toggle("is-active", !demo);
+  el("tabDemo").setAttribute("aria-selected", String(demo));
+  el("tabHow").setAttribute("aria-selected", String(!demo));
+  el("viewDemo").classList.toggle("is-active", demo);
+  el("viewHow").classList.toggle("is-active", !demo);
+  el("viewDemo").toggleAttribute("hidden", !demo);
+  el("viewHow").toggleAttribute("hidden", demo);
+}
 
 // ---- actions (the x402 work) ---------------------------------------------
 async function runAction(action: ActionKey): Promise<void> {
@@ -103,7 +118,7 @@ async function runAction(action: ActionKey): Promise<void> {
   }
 }
 
-// ---- entrance: agents walk in from the edges and meet ---------------------
+// ---- entrance: agents walk in from the stage edges and meet ---------------
 async function playEntrance(): Promise<void> {
   speakerName.textContent = "";
   dialogueText.textContent = "…";
@@ -117,11 +132,12 @@ async function playEntrance(): Promise<void> {
     return;
   }
 
-  // Start each actor just past its edge of the viewport, then walk to rest.
+  // Start each actor just past its edge of the stage, then walk to rest.
+  const sceneRect = sceneEl.getBoundingClientRect();
   const bRect = buyoFig.getBoundingClientRect();
   const sRect = sellaFig.getBoundingClientRect();
-  const offB = bRect.right + 32;
-  const offS = window.innerWidth - sRect.left + 32;
+  const offB = bRect.right - sceneRect.left + 16;
+  const offS = sceneRect.right - sRect.left + 16;
   buyoFig.style.transform = `translateX(${-offB}px)`;
   sellaFig.style.transform = `translateX(${offS}px)`;
 
@@ -139,8 +155,6 @@ async function playEntrance(): Promise<void> {
   );
   await Promise.all([aB.finished, aS.finished]);
 
-  // Cancel so the forwards-fill stops overriding the CSS transform (used by the
-  // active-speaker highlight); the actors rest at their natural position.
   aB.cancel();
   aS.cancel();
   buyoActor.stopWalk();
@@ -207,7 +221,7 @@ async function goTo(id: string): Promise<void> {
   if (busy) return;
 
   if (id === "__explain") {
-    openExplainer();
+    setTab("how");
     return;
   }
   if (id === "__restart") {
@@ -234,10 +248,13 @@ async function goTo(id: string): Promise<void> {
     }
   }
 
-  // Beat 4: the Ledger Stax review + hold-to-sign.
+  // Beat 4: bring the Stax forward, then run review + hold-to-sign.
   if (node.approval) {
     showWorking("Review on the Ledger Stax, then hold to sign.");
+    staxPanel.classList.add("is-foreground");
+    staxPanel.scrollIntoView({ behavior: reducedMotion ? "auto" : "smooth", block: "center" });
     busy = false; // the device UI drives now
+
     const outcome = await runStaxReview({
       amountHuman: ctx.values.price ?? ctx.terms?.amountHuman ?? "",
       recipientName: "Sella",
@@ -248,6 +265,7 @@ async function goTo(id: string): Promise<void> {
 
     if (outcome === "rejected") {
       setIdle("cancelled");
+      staxPanel.classList.remove("is-foreground");
       await goTo(node.onReject ?? START_NODE);
       return;
     }
@@ -256,6 +274,7 @@ async function goTo(id: string): Promise<void> {
     const signed = await signAuthorization(ctx.typedData!);
     ctx.signed = signed;
     ctx.values.sigShort = shortHex(signed.signature, 10, 6);
+    staxPanel.classList.remove("is-foreground");
     await goTo(node.goto!);
     return;
   }
@@ -276,14 +295,7 @@ async function goTo(id: string): Promise<void> {
   busy = false;
 }
 
-// ---- explainer + restart --------------------------------------------------
-function openExplainer(): void {
-  const panel = el("explainPanel");
-  panel.removeAttribute("hidden");
-  el<HTMLButtonElement>("explainClose").focus();
-  panel.scrollIntoView({ behavior: reducedMotion ? "auto" : "smooth", block: "nearest" });
-}
-
+// ---- restart --------------------------------------------------------------
 function resetState(): void {
   ctx.terms = undefined;
   ctx.typedData = undefined;
@@ -294,12 +306,13 @@ function resetState(): void {
   ctx.values = {};
   if (wrapLine) ctx.values.wrapLine = wrapLine;
   setIdle("ready");
-  el("explainPanel").setAttribute("hidden", "");
+  staxPanel.classList.remove("is-foreground");
 }
 
 async function restart(): Promise<void> {
   busy = true;
   resetState();
+  setTab("demo");
   await playEntrance();
   busy = false;
   await goTo(START_NODE);
@@ -320,30 +333,29 @@ function applyHonestyCopy(config: Config): void {
 
 // ---- bootstrap ------------------------------------------------------------
 export async function startEngine(): Promise<void> {
+  sceneEl = el("scene");
   dialogueBox = el("dialogue");
   speakerName = el("speakerName");
   dialogueText = el("dialogueText");
   choicesEl = el("choices");
+  staxPanel = el("staxPanel");
   buyoFig = el("buyo");
   sellaFig = el("sella");
 
   buyoActor = new SpriteActor(el("buyoSprite"), "buyo");
   sellaActor = new SpriteActor(el("sellaSprite"), "sella");
 
-  // Draw the Ledger mark onto the Stax bottom bar.
   const markHost = document.getElementById("ledgerMark");
   if (markHost) markHost.appendChild(createSpriteCanvas(SPRITES.ledgerMark));
 
   initLedger();
 
-  el<HTMLButtonElement>("explainClose").addEventListener("click", () =>
-    el("explainPanel").setAttribute("hidden", ""),
-  );
+  el<HTMLButtonElement>("tabDemo").addEventListener("click", () => setTab("demo"));
+  el<HTMLButtonElement>("tabHow").addEventListener("click", () => setTab("how"));
 
   // Walk the agents in first (no await before this, so they never flash at rest).
   await playEntrance();
 
-  // Then load config and set the honest wrap line / tag (used much later).
   ctx.config = await fetchConfig();
   applyHonestyCopy(ctx.config);
 

@@ -1,8 +1,8 @@
 /* ==========================================================================
-   Agent Pays Agent -- interactive cartoon style system
-   Mobile-first, playable in phone portrait. Base brand palette. True pixel-art
-   rendering: hard edges only, no soft gradients, blur, or soft shadows.
-   The Ledger Stax screen mimics a real device: white screen, black sans text.
+   Agent Pays Agent -- clean retro dashboard (Base blue)
+   Monospace UI, double-bordered panels with a hard card lift, chunky raised
+   buttons, tab nav. True pixel-art rendering for sprites (hard edges, no blur).
+   Mobile-first; the Ledger Stax screen stays white with black text.
    ========================================================================== */
 
 :root {
@@ -11,7 +11,15 @@
   --near-black: #0a0b0d;
 
   --base-blue-dark: #0040c8;
+  --base-blue-deep: #00204d; /* card shadow */
   --base-blue-light: #3d7bff;
+  --panel: #ffffff;
+  --ink-soft: #41464d;
+
+  /* retro accents */
+  --gold: #f5b301;
+  --good: #1f9d57;
+  --bad: #b00020;
 
   /* Ledger Stax materials (flat steps, no gradients) */
   --charcoal: #15171c;
@@ -21,14 +29,13 @@
   --silver-dark: #9aa0a6;
   --screen-ink: #0a0b0d;
   --screen-sub: #5a5f66;
-  --reject-red: #b00020;
 
   --font-pixel: "Press Start 2P", monospace;
-  --font-text: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, Helvetica,
-    Arial, sans-serif;
+  --font-mono: "Space Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  --font-text: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 
   --px: 4px;
-  color-scheme: dark;
+  color-scheme: light;
 }
 
 * {
@@ -41,7 +48,10 @@ body {
 }
 body {
   background-color: var(--base-blue);
-  color: var(--white);
+  /* a calm, flat dotted texture using a single hard radial -- no soft gradient */
+  background-image: radial-gradient(var(--base-blue-dark) 1.5px, transparent 1.5px);
+  background-size: 18px 18px;
+  color: var(--near-black);
   font-family: var(--font-text);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
@@ -56,73 +66,160 @@ body {
   image-rendering: crisp-edges;
 }
 
-/* --- Page shell ---------------------------------------------------------- */
-.game {
-  min-height: 100svh;
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: clamp(14px, 3.2vh, 26px);
+/* --- App shell ----------------------------------------------------------- */
+.app {
   width: 100%;
   max-width: 760px;
   margin: 0 auto;
-  padding: clamp(16px, 4.5vw, 40px);
-  padding-top: max(clamp(16px, 4.5vw, 40px), env(safe-area-inset-top));
-  padding-bottom: max(clamp(16px, 4.5vw, 40px), env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  gap: clamp(12px, 2.6vh, 20px);
+  padding: clamp(14px, 4vw, 32px);
+  padding-top: max(clamp(14px, 4vw, 32px), env(safe-area-inset-top));
+  padding-bottom: max(clamp(14px, 4vw, 32px), env(safe-area-inset-bottom));
 }
 
-/* --- Masthead ------------------------------------------------------------ */
+/* --- Double-bordered panel with a hard card lift ------------------------- */
+.panel {
+  position: relative;
+  background: var(--panel);
+  border: 3px solid var(--near-black);
+  box-shadow: 6px 6px 0 0 var(--base-blue-deep);
+  padding: clamp(16px, 4vw, 24px);
+}
+.panel::before {
+  content: "";
+  position: absolute;
+  inset: 5px;
+  border: 2px solid var(--near-black);
+  pointer-events: none;
+}
+
+/* --- Masthead (primary blue panel) -------------------------------------- */
 .masthead {
+  background: var(--base-blue);
   text-align: center;
+}
+.masthead::before {
+  border-color: var(--white);
 }
 .title {
   font-family: var(--font-pixel);
-  font-size: clamp(15px, 5.5vw, 32px);
+  font-size: clamp(15px, 5.2vw, 30px);
   line-height: 1.3;
   margin: 0;
   color: var(--white);
   text-shadow: var(--px) var(--px) 0 var(--near-black);
 }
 .subtitle {
-  font-family: var(--font-pixel);
-  font-size: clamp(7px, 2.1vw, 11px);
-  line-height: 1.7;
-  margin: 8px 0 0;
-  color: var(--near-black);
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: clamp(9px, 2.5vw, 13px);
+  line-height: 1.6;
+  margin: 10px 0 0;
+  color: var(--white);
+}
+
+/* --- Tabs ---------------------------------------------------------------- */
+.tabs {
+  display: flex;
+  gap: clamp(8px, 2vw, 12px);
+}
+.tab {
+  flex: 1 1 auto;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: clamp(10px, 2.6vw, 14px);
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  color: var(--base-blue);
+  background: var(--white);
+  border: 3px solid var(--near-black);
+  box-shadow: 4px 4px 0 0 var(--base-blue-deep);
+  padding: clamp(10px, 2.8vw, 14px);
+}
+.tab.is-active {
+  color: var(--white);
+  background: var(--base-blue);
+  box-shadow: 4px 4px 0 0 var(--near-black);
+}
+.tab:focus-visible {
+  outline: var(--px) solid var(--white);
+  outline-offset: 2px;
+}
+
+/* --- Views --------------------------------------------------------------- */
+.view {
+  display: none;
+  flex-direction: column;
+  gap: clamp(12px, 2.6vh, 20px);
+}
+.view.is-active {
+  display: flex;
 }
 
 /* ==========================================================================
-   STAGE: two walking actors + the Ledger Stax gate
+   SCENE: free-standing robots on a Base-blue stage with a ground line
    ========================================================================== */
-.stage {
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: clamp(14px, 3.5vh, 28px);
+.scene-panel {
+  background: var(--base-blue);
+  padding: 0;
 }
-
+.scene-panel::before {
+  border-color: var(--white);
+  inset: 5px;
+}
+.scene {
+  position: relative;
+  overflow: hidden;
+  min-height: clamp(190px, 50vw, 280px);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: clamp(16px, 4vw, 24px) clamp(10px, 3vw, 20px) clamp(26px, 7vw, 38px);
+}
 .actors {
   width: 100%;
   display: flex;
   justify-content: space-around;
   align-items: flex-end;
-  gap: clamp(12px, 5vw, 48px);
 }
-
 .actor {
   margin: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
-  text-align: center;
-  gap: 4px;
+  gap: 6px;
   transition: transform 120ms steps(2, end);
   will-change: transform;
 }
 .actor.is-active {
-  transform: translateY(calc(var(--px) * -1));
+  transform: translateY(calc(var(--px) * -1.5));
+}
+.actor__name {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: clamp(9px, 2.4vw, 12px);
+  letter-spacing: 0.06em;
+  color: var(--white);
+  background: var(--near-black);
+  border: 2px solid var(--white);
+  padding: 3px 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1.4;
+}
+.actor.is-active .actor__name {
+  color: var(--near-black);
+  background: var(--white);
+  border-color: var(--near-black);
+}
+.actor__role {
+  font-weight: 400;
+  font-size: 0.72em;
+  letter-spacing: 0.04em;
+  opacity: 0.85;
 }
 .actor__bob {
   animation: idle-bob 1.8s linear infinite;
@@ -131,71 +228,76 @@ body {
   animation-duration: 1s;
 }
 .actor__sprite {
-  width: clamp(72px, 22vw, 132px);
+  width: clamp(70px, 21vw, 120px);
   line-height: 0;
-  background: var(--near-black);
-  border: var(--px) solid var(--near-black);
-  box-shadow: var(--px) var(--px) 0 0 var(--near-black);
 }
-.actor.is-active .actor__sprite {
-  box-shadow: var(--px) var(--px) 0 0 var(--white);
-}
-.actor__name {
-  font-family: var(--font-pixel);
-  font-size: clamp(8px, 2.4vw, 12px);
-  margin-top: 4px;
-}
-.actor__role {
-  font-family: var(--font-pixel);
-  font-size: clamp(6px, 1.8vw, 9px);
-  color: var(--near-black);
-  margin: 0;
+/* flat ground line + strip (hard edges) */
+.ground {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: clamp(14px, 4vw, 20px);
+  background: var(--base-blue-dark);
+  border-top: var(--px) solid var(--near-black);
 }
 
 /* ==========================================================================
-   LEDGER STAX (pixel-art device: charcoal body, white screen, silver bar)
+   LEDGER STAX (vertical pixel-art device, brought forward at payment time)
    ========================================================================== */
+.stax-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  transition: transform 120ms steps(2, end);
+}
+.stax-panel.is-foreground {
+  background: var(--base-blue);
+  transform: scale(1.015);
+}
+.stax-panel.is-foreground::before {
+  border-color: var(--white);
+}
 .stax {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
-  width: clamp(196px, 64vw, 286px);
-  margin-top: clamp(8px, 3vw, 16px);
+  width: clamp(150px, 46vw, 196px);
 }
 .stax__body {
   position: relative;
   width: 100%;
   background: var(--charcoal);
   border: var(--px) solid var(--near-black);
-  border-radius: clamp(12px, 3.5vw, 20px);
-  padding: clamp(10px, 3vw, 15px);
+  border-radius: clamp(14px, 4.5vw, 22px);
+  padding: clamp(10px, 3vw, 14px);
   display: flex;
   flex-direction: column;
 }
-/* small power button on the RIGHT edge of the body */
+/* single power button on the RIGHT edge */
 .stax__side-btn {
   position: absolute;
   right: calc(var(--px) * -1.5);
-  top: 20%;
+  top: 26%;
   width: clamp(5px, 1.6vw, 8px);
-  height: clamp(28px, 7vw, 42px);
+  height: clamp(26px, 7vw, 40px);
   background: var(--charcoal-edge);
   border: 2px solid var(--near-black);
   border-radius: 0 4px 4px 0;
 }
-/* large WHITE touchscreen, BLACK text */
+/* large WHITE touchscreen, BLACK text, fills most of the face */
 .stax__screen {
   width: 100%;
-  min-height: clamp(168px, 48vw, 244px);
+  min-height: clamp(196px, 60vw, 260px);
   background: var(--white);
   color: var(--screen-ink);
-  border-radius: clamp(6px, 2vw, 10px);
-  padding: clamp(10px, 3vw, 16px);
+  border-radius: clamp(8px, 2.4vw, 12px);
+  padding: clamp(10px, 3vw, 14px);
   overflow: hidden;
   font-family: var(--font-text);
 }
-/* glossy SILVER bar across the bottom (flat stepped, hard edges) */
+/* glossy SILVER bottom bar (flat stepped) with the Ledger mark */
 .stax__bar {
   width: 100%;
   height: clamp(16px, 4.5vw, 22px);
@@ -214,13 +316,18 @@ body {
   line-height: 0;
 }
 .stax__label {
-  font-family: var(--font-pixel);
-  font-size: clamp(6px, 1.8vw, 9px);
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: clamp(8px, 2.2vw, 11px);
+  letter-spacing: 0.08em;
   color: var(--near-black);
   margin: 0;
 }
+.stax-panel.is-foreground .stax__label {
+  color: var(--white);
+}
 
-/* --- idle / terminal screens -------------------------------------------- */
+/* --- on-screen: idle / terminal ----------------------------------------- */
 .stax-idle {
   height: 100%;
   min-height: inherit;
@@ -232,6 +339,7 @@ body {
   text-align: center;
 }
 .stax-idle__title {
+  font-family: var(--font-mono);
   font-weight: 700;
   font-size: clamp(13px, 3.6vw, 17px);
   color: var(--screen-ink);
@@ -241,20 +349,21 @@ body {
   color: var(--screen-sub);
 }
 
-/* --- paged review -------------------------------------------------------- */
+/* --- on-screen: paged review -------------------------------------------- */
 .stax-review {
   height: 100%;
-  min-height: clamp(148px, 42vw, 212px);
+  min-height: clamp(176px, 54vw, 232px);
   display: flex;
   flex-direction: column;
   gap: clamp(6px, 2vw, 10px);
 }
 .stax-review__indicator {
-  font-weight: 600;
+  font-family: var(--font-mono);
+  font-weight: 700;
   font-size: clamp(10px, 2.6vw, 12px);
   color: var(--screen-sub);
   text-align: center;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.04em;
 }
 .stax-review__page {
   flex: 1;
@@ -277,8 +386,9 @@ body {
   font-weight: 700;
 }
 .stax-review__label {
+  font-family: var(--font-mono);
   font-weight: 700;
-  font-size: clamp(13px, 3.6vw, 17px);
+  font-size: clamp(13px, 3.6vw, 16px);
   color: var(--screen-ink);
 }
 .stax-review__value {
@@ -288,7 +398,7 @@ body {
   word-break: break-word;
 }
 .stax-review__sub {
-  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  font-family: var(--font-mono);
   font-size: clamp(10px, 2.6vw, 12px);
   color: var(--screen-sub);
   word-break: break-all;
@@ -325,16 +435,16 @@ body {
 .stax-review__reject {
   width: 100%;
   background: transparent;
-  color: var(--reject-red);
+  color: var(--bad);
   border: none;
-  font-family: var(--font-text);
-  font-weight: 600;
+  font-family: var(--font-mono);
+  font-weight: 700;
   font-size: clamp(11px, 2.8vw, 13px);
   cursor: pointer;
   padding: 4px;
 }
 
-/* --- hold to sign -------------------------------------------------------- */
+/* --- on-screen: hold to sign -------------------------------------------- */
 .stax-sign {
   position: relative;
   flex: 1 1 auto;
@@ -345,7 +455,7 @@ body {
   color: var(--screen-ink);
   cursor: pointer;
   overflow: hidden;
-  font-family: var(--font-text);
+  font-family: var(--font-mono);
   font-weight: 700;
   font-size: clamp(12px, 3vw, 15px);
   display: flex;
@@ -372,21 +482,16 @@ body {
 }
 
 /* ==========================================================================
-   DIALOGUE BOX
+   DIALOGUE
    ========================================================================== */
 .dialogue {
   position: relative;
-  width: 100%;
-  background: var(--near-black);
-  border: var(--px) solid var(--near-black);
-  box-shadow: var(--px) var(--px) 0 0 var(--base-blue-dark);
-  padding: clamp(14px, 4vw, 22px);
-  min-height: clamp(96px, 20vh, 132px);
+  min-height: clamp(86px, 18vh, 120px);
 }
 .dialogue::after {
   content: "";
   position: absolute;
-  top: calc(var(--px) * -3);
+  top: calc(var(--px) * -3 - 3px);
   border-left: calc(var(--px) * 2.5) solid transparent;
   border-right: calc(var(--px) * 2.5) solid transparent;
   border-bottom: calc(var(--px) * 3) solid var(--near-black);
@@ -402,10 +507,12 @@ body {
   transform: translateX(-50%);
 }
 .dialogue__name {
-  font-family: var(--font-pixel);
-  font-size: clamp(9px, 2.6vw, 13px);
-  color: var(--base-blue-light);
-  margin: 0 0 10px;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: clamp(11px, 2.8vw, 14px);
+  letter-spacing: 0.04em;
+  color: var(--base-blue);
+  margin: 0 0 8px;
   min-height: 1em;
 }
 .dialogue__text {
@@ -413,14 +520,13 @@ body {
   font-size: clamp(14px, 3.4vw, 18px);
   line-height: 1.55;
   margin: 0;
-  color: var(--white);
+  color: var(--near-black);
 }
 
 /* ==========================================================================
-   CHOICES
+   CHOICES (chunky raised buttons)
    ========================================================================== */
 .choices {
-  width: 100%;
   display: flex;
   flex-direction: column;
   gap: clamp(8px, 2vw, 12px);
@@ -428,50 +534,43 @@ body {
 }
 .choice {
   width: 100%;
-  font-family: var(--font-pixel);
-  font-size: clamp(9px, 2.5vw, 13px);
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: clamp(11px, 2.8vw, 14px);
   line-height: 1.5;
   text-align: left;
   cursor: pointer;
-  color: var(--base-blue);
-  background: var(--white);
-  border: var(--px) solid var(--near-black);
-  box-shadow: var(--px) var(--px) 0 0 var(--near-black);
+  color: var(--white);
+  background: var(--base-blue);
+  border: 3px solid var(--near-black);
+  box-shadow: 5px 5px 0 0 var(--near-black);
   padding: clamp(12px, 3.2vw, 16px) clamp(14px, 4vw, 18px);
-  transition: transform 70ms steps(2, end);
+  transition: transform 70ms steps(2, end), box-shadow 70ms steps(2, end);
 }
 .choice:hover {
   background: var(--base-blue-light);
-  color: var(--white);
 }
 .choice:active {
-  transform: translate(var(--px), var(--px));
-  box-shadow: none;
+  transform: translate(5px, 5px);
+  box-shadow: 0 0 0 0 var(--near-black);
 }
 .choice:focus-visible {
   outline: var(--px) solid var(--white);
-  outline-offset: var(--px);
+  outline-offset: 2px;
 }
 .choices__working {
-  font-family: var(--font-text);
-  font-size: clamp(13px, 3vw, 16px);
-  font-style: italic;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: clamp(12px, 3vw, 15px);
   color: var(--white);
   margin: 0;
-  padding: clamp(10px, 3vw, 14px) 0;
+  padding: clamp(8px, 2.4vw, 12px) 2px;
 }
 
 /* ==========================================================================
-   EXPLAINER (readable, non-pixel font)
+   EXPLAINER (readable)
    ========================================================================== */
 .explain {
-  position: relative;
-  width: 100%;
-  background: var(--white);
-  color: var(--near-black);
-  border: var(--px) solid var(--near-black);
-  box-shadow: var(--px) var(--px) 0 0 var(--near-black);
-  padding: clamp(18px, 5vw, 30px);
   font-family: var(--font-text);
   font-size: clamp(14px, 2.7vw, 16px);
   line-height: 1.6;
@@ -479,24 +578,11 @@ body {
 .explain p {
   margin: 0 0 14px;
 }
-.explain__close {
-  position: absolute;
-  top: clamp(10px, 3vw, 16px);
-  right: clamp(10px, 3vw, 16px);
-  font-family: var(--font-pixel);
-  font-size: clamp(8px, 2.2vw, 10px);
-  cursor: pointer;
-  color: var(--white);
-  background: var(--near-black);
-  border: var(--px) solid var(--near-black);
-  padding: 8px 10px;
-}
 .explain__title {
   font-family: var(--font-pixel);
   font-size: clamp(13px, 3.6vw, 18px);
   color: var(--base-blue);
-  margin: 0 0 14px;
-  padding-right: 64px;
+  margin: 0 0 16px;
 }
 .explain__steps {
   margin: 0 0 14px;
@@ -509,7 +595,7 @@ body {
   color: var(--base-blue);
 }
 .explain code {
-  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  font-family: var(--font-mono);
   background: rgba(0, 82, 255, 0.1);
   padding: 1px 4px;
 }
@@ -528,27 +614,22 @@ body {
    WRAP & HONESTY
    ========================================================================== */
 .outro {
-  width: 100%;
   text-align: center;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
 }
 .verdict {
-  font-family: var(--font-pixel);
-  font-size: clamp(9px, 2.4vw, 13px);
-  line-height: 1.7;
-  color: var(--white);
-  text-shadow: var(--px) var(--px) 0 var(--near-black);
-  margin: 0;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: clamp(11px, 2.8vw, 15px);
+  line-height: 1.6;
+  color: var(--near-black);
+  margin: 0 0 10px;
 }
 .sim-tag {
   font-family: var(--font-text);
   font-size: clamp(11px, 2.3vw, 13px);
   line-height: 1.5;
-  color: var(--near-black);
+  color: var(--ink-soft);
   margin: 0;
-  opacity: 0.9;
 }
 
 /* ==========================================================================
@@ -556,8 +637,7 @@ body {
    ========================================================================== */
 @media (min-width: 720px) {
   .actors {
-    justify-content: space-between;
-    padding: 0 clamp(20px, 6vw, 64px);
+    padding: 0 clamp(20px, 6vw, 56px);
   }
   .choices {
     flex-direction: row;
@@ -609,7 +689,7 @@ body {
 }
 
 /* ==========================================================================
-   REDUCED MOTION: calmer, but fully functional
+   REDUCED MOTION
    ========================================================================== */
 @media (prefers-reduced-motion: reduce) {
   .actor__bob,
@@ -618,6 +698,7 @@ body {
   }
   .actor,
   .choice,
+  .stax-panel,
   .stax-sign__fill {
     transition: none !important;
   }

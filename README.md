@@ -97,18 +97,24 @@ runs `npm install && npm run build`, then `npm start`, and injects `PORT`.
 
 ## What to check
 
-- **Entrance:** Buyo and Sella walk in from the edges (stepped legs) and meet in
-  the middle before the dialogue starts. Reduced motion makes them appear in place.
-- **Scene:** Buyo left, Sella right, a recognizable pixel **Ledger Stax**
-  (charcoal body, side button, large white screen, silver bottom bar with the
-  Ledger mark) as the gate. Plays well in phone portrait, looks good on laptop.
+- **Retro UI:** a clean Base-blue dashboard with double-bordered panels, a hard
+  card lift, monospace headings/labels/buttons, a tab nav (DEMO / HOW IT WORKS),
+  and chunky raised buttons with a pressed state. Base Blue dominates.
+- **Robots:** Buyo and Sella are limbed pixel robots (head, body, arms, legs),
+  standing free on a Base-blue stage with a ground line, not boxed in a frame.
+- **Entrance:** they walk in from the left and right edges with a stepped walk
+  cycle (arms and legs animate) and meet in the middle before the dialogue
+  starts. Reduced motion makes them appear in place.
+- **Ledger Stax:** an accurate vertical (portrait) device: charcoal rounded
+  body, right-side button, large white touchscreen with black text, silver
+  bottom bar with the Ledger mark. It is brought forward at payment time.
 - **Flow:** the seven beats play; the 402 is real (watch the network tab); the
-  Stax shows the paged review; press and hold to sign produces a short signature
-  hash; Reject leads to a friendly cancelled beat.
-- **Explainer and honesty (Phase 3):** "What just happened?" reads clearly in a
-  non-pixel font; the wrap line and the honesty tag are visible and currently
-  say the signature is simulated; tone stays complementary to x402 and Coinbase;
-  no em dashes in on-page copy.
+  Stax shows the paged review (1 of 3 to 3 of 3); press and hold to sign
+  produces a short signature hash; Reject leads to a friendly cancelled beat.
+- **Explainer and honesty:** the HOW IT WORKS tab reads clearly in a non-pixel
+  font; the wrap line and the honesty tag are visible and currently say the
+  signature is simulated; tone stays complementary to x402 and Coinbase; no em
+  dashes in on-page copy.
 
 ## Brand palette
 

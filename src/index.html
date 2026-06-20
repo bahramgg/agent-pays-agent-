@@ -13,134 +13,140 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Inter:wght@400;500;600;700&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Space+Mono:wght@400;700&family=Inter:wght@400;500;600&display=swap"
       rel="stylesheet"
     />
 
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
-    <main class="game" role="main">
-      <header class="masthead">
-        <h1 class="title">Agent Pays Agent</h1>
+    <div class="app">
+      <!-- ============================ HEADER ============================ -->
+      <header class="panel masthead">
+        <h1 class="title">AGENT PAYS AGENT</h1>
         <p class="subtitle">Two agents, one x402 payment, signed on hardware.</p>
       </header>
 
-      <!-- ============================ STAGE ============================ -->
-      <section class="stage" aria-label="The scene">
-        <div class="actors">
-          <!-- Buyo walks in from the left -->
-          <figure class="actor actor--buyo" id="buyo">
-            <div class="actor__bob">
-              <div
-                class="actor__sprite"
-                id="buyoSprite"
-                role="img"
-                aria-label="Buyo, the buyer agent"
-              ></div>
-            </div>
-            <figcaption class="actor__name">Buyo</figcaption>
-            <p class="actor__role">The Buyer</p>
-          </figure>
+      <!-- ============================= TABS ============================= -->
+      <nav class="tabs" role="tablist" aria-label="Views">
+        <button class="tab is-active" id="tabDemo" role="tab" aria-selected="true" type="button">
+          DEMO
+        </button>
+        <button class="tab" id="tabHow" role="tab" aria-selected="false" type="button">
+          HOW IT WORKS
+        </button>
+      </nav>
 
-          <!-- Sella walks in from the right -->
-          <figure class="actor actor--sella" id="sella">
-            <div class="actor__bob">
-              <div
-                class="actor__sprite"
-                id="sellaSprite"
-                role="img"
-                aria-label="Sella, the seller agent"
-              ></div>
+      <!-- ============================ DEMO VIEW ========================= -->
+      <section class="view is-active" id="viewDemo" role="tabpanel" aria-label="Demo">
+        <!-- Scene: free-standing robots on a Base-blue stage -->
+        <div class="panel scene-panel">
+          <div class="scene" id="scene">
+            <div class="actors">
+              <figure class="actor actor--buyo" id="buyo">
+                <figcaption class="actor__name">BUYO<span class="actor__role">buyer</span></figcaption>
+                <div class="actor__bob">
+                  <div class="actor__sprite" id="buyoSprite" role="img" aria-label="Buyo, the buyer agent"></div>
+                </div>
+              </figure>
+
+              <figure class="actor actor--sella" id="sella">
+                <figcaption class="actor__name">SELLA<span class="actor__role">seller</span></figcaption>
+                <div class="actor__bob">
+                  <div class="actor__sprite" id="sellaSprite" role="img" aria-label="Sella, the seller agent"></div>
+                </div>
+              </figure>
             </div>
-            <figcaption class="actor__name">Sella</figcaption>
-            <p class="actor__role">The Seller</p>
-          </figure>
+            <div class="ground" aria-hidden="true"></div>
+          </div>
         </div>
 
-        <!-- The gate: a recognizable pixel-art Ledger Stax -->
-        <div class="stax" id="ledger">
-          <div class="stax__body">
-            <span class="stax__side-btn" aria-hidden="true"></span>
-            <div class="stax__screen" id="ledgerScreen"></div>
-            <div class="stax__bar">
-              <span class="stax__mark" id="ledgerMark" aria-hidden="true"></span>
+        <!-- The Ledger Stax (vertical), brought forward at payment time -->
+        <div class="panel stax-panel" id="staxPanel">
+          <div class="stax" id="ledger">
+            <div class="stax__body">
+              <span class="stax__side-btn" aria-hidden="true"></span>
+              <div class="stax__screen" id="ledgerScreen"></div>
+              <div class="stax__bar">
+                <span class="stax__mark" id="ledgerMark" aria-hidden="true"></span>
+              </div>
             </div>
           </div>
-          <p class="stax__label">Ledger Stax (the gate)</p>
+          <p class="stax__label">LEDGER STAX</p>
         </div>
+
+        <!-- Dialogue -->
+        <div class="panel dialogue-panel">
+          <section class="dialogue from-center" id="dialogue" aria-live="polite" aria-label="Dialogue">
+            <p class="dialogue__name" id="speakerName"></p>
+            <p class="dialogue__text" id="dialogueText">…</p>
+          </section>
+        </div>
+
+        <!-- Choices -->
+        <section class="choices" id="choices" aria-label="Your choices"></section>
       </section>
 
-      <!-- ========================= DIALOGUE BOX ========================= -->
-      <section class="dialogue from-center" id="dialogue" aria-live="polite" aria-label="Dialogue">
-        <p class="dialogue__name" id="speakerName"></p>
-        <p class="dialogue__text" id="dialogueText">…</p>
-      </section>
-
-      <!-- ========================== CHOICES ============================ -->
-      <section class="choices" id="choices" aria-label="Your choices"></section>
-
-      <!-- ========================= EXPLAINER =========================== -->
-      <section class="explain" id="explainPanel" aria-label="What just happened" hidden>
-        <button class="explain__close" id="explainClose" type="button" aria-label="Close">
-          Close
-        </button>
-        <h2 class="explain__title">What just happened?</h2>
-        <p>
-          Buyo and Sella just completed a paid API call using x402, an open payment
-          standard. Here is each step in plain language.
-        </p>
-        <ol class="explain__steps">
-          <li>
-            <strong>Meet.</strong> Buyo needs a forecast. Sella offers her Weather
-            Oracle, priced over x402.
-          </li>
-          <li>
-            <strong>402 Payment Required.</strong> Buyo's first request returned a real
-            HTTP 402 with payment terms: pay 0.01 USDC to Sella on Base, with a nonce
-            and an expiry. The 402 status code is how x402 asks a client to pay before
-            continuing.
-          </li>
-          <li>
-            <strong>Authorize.</strong> Buyo built an EIP-3009
-            <code>transferWithAuthorization</code> message. That is EIP-712 typed data:
-            a structured instruction to move 0.01 USDC to Sella, without broadcasting a
-            separate transaction first.
-          </li>
-          <li>
-            <strong>Review and sign on hardware.</strong> The message went to a Ledger
-            Stax. The touchscreen showed the amount, recipient, and network across
-            paged review screens, and a press and hold approved it. The private key
-            stayed on the device the whole time. That is the one option this demo adds
-            on top of x402.
-          </li>
-          <li>
-            <strong>Settle on Base.</strong> The signed authorization went to a
-            facilitator that submits to Base. In this demo, settlement is simulated.
-          </li>
-          <li>
-            <strong>Deliver.</strong> With payment settled, Sella returned the forecast.
-            The paid request is complete.
-          </li>
-        </ol>
-        <p class="explain__friendly">
-          x402 makes agent payments fast and open, and it pairs nicely with Coinbase's
-          onchain tooling. This demo simply adds one option: keep the signing key in
-          hardware.
-        </p>
-        <p class="explain__note">
-          The addresses, nonce, signature, and transaction hash are realistic-looking
-          placeholders. The EIP-712 message is constructed for real; the signature is
-          simulated for now and settlement is simulated.
-        </p>
+      <!-- ========================= HOW IT WORKS ======================== -->
+      <section class="view" id="viewHow" role="tabpanel" aria-label="How it works" hidden>
+        <div class="panel explain">
+          <h2 class="explain__title">What just happened?</h2>
+          <p>
+            Buyo and Sella just completed a paid API call using x402, an open payment
+            standard. Here is each step in plain language.
+          </p>
+          <ol class="explain__steps">
+            <li>
+              <strong>Meet.</strong> Buyo needs a forecast. Sella offers her Weather
+              Oracle, priced over x402.
+            </li>
+            <li>
+              <strong>402 Payment Required.</strong> Buyo's first request returned a real
+              HTTP 402 with payment terms: pay 0.01 USDC to Sella on Base, with a nonce
+              and an expiry. The 402 status code is how x402 asks a client to pay before
+              continuing.
+            </li>
+            <li>
+              <strong>Authorize.</strong> Buyo built an EIP-3009
+              <code>transferWithAuthorization</code> message. That is EIP-712 typed data:
+              a structured instruction to move 0.01 USDC to Sella, without broadcasting a
+              separate transaction first.
+            </li>
+            <li>
+              <strong>Review and sign on hardware.</strong> The message went to a Ledger
+              Stax. The touchscreen showed the amount, recipient, and network across paged
+              review screens, and a press and hold approved it. The private key stayed on
+              the device the whole time. That is the one option this demo adds on top of
+              x402.
+            </li>
+            <li>
+              <strong>Settle on Base.</strong> The signed authorization went to a
+              facilitator that submits to Base. In this demo, settlement is simulated.
+            </li>
+            <li>
+              <strong>Deliver.</strong> With payment settled, Sella returned the forecast.
+              The paid request is complete.
+            </li>
+          </ol>
+          <p class="explain__friendly">
+            x402 makes agent payments fast and open, and it pairs nicely with Coinbase's
+            onchain tooling. This demo simply adds one option: keep the signing key in
+            hardware.
+          </p>
+          <p class="explain__note">
+            The addresses, nonce, signature, and transaction hash are realistic-looking
+            placeholders. The EIP-712 message is constructed for real; the signature is
+            simulated for now and settlement is simulated.
+          </p>
+        </div>
       </section>
 
       <!-- ===================== WRAP & HONESTY ========================== -->
-      <footer class="outro">
+      <footer class="panel outro">
         <p class="verdict" id="verdict"></p>
         <p class="sim-tag" id="simTag"></p>
       </footer>
-    </main>
+    </div>
 
     <script type="module" src="./main.js"></script>
   </body>
