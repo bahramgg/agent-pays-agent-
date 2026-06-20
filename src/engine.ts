@@ -330,13 +330,6 @@ function applyHonestyCopy(config: Config): void {
     : "Paid with x402. Signed in a simulated Ledger flow. Key never left the device.";
   ctx.values.wrapLine = wrapLine;
   el("verdict").textContent = wrapLine;
-
-  const tag = config.useRealSigner
-    ? "Real EIP-712 signature on the Ledger Speculos emulator. Settlement is simulated. No real funds."
-    : "Simulated EIP-712 signature for now. Real Ledger Speculos signing arrives in a later phase. Settlement is simulated. No real funds.";
-  el("simTag").textContent = tag;
-  const aboutTag = document.getElementById("aboutTag");
-  if (aboutTag) aboutTag.textContent = tag;
 }
 
 // ---- bootstrap ------------------------------------------------------------
