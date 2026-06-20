@@ -2,7 +2,7 @@
   "name": "agent-pays-agent",
   "version": "0.0.1",
   "private": true,
-  "description": "Simulated 8-bit pixel-art demo: two agents paying each other via x402, anchored by a Ledger hardware signature.",
+  "description": "An interactive pixel-art cartoon where two agents make a buy/sell paid over x402 and signed on a Ledger device.",
   "type": "module",
   "engines": {
     "node": ">=18"

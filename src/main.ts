@@ -1,10 +1,9 @@
-// Entry point: draw every sprite, then wire up the animated exchange flow.
+// Entry point. Phase 0 just draws the Buyo sprite; the CSS handles the idle bob.
+// Later phases will add the dialogue/choice engine and the x402 + Ledger flow.
 import { mountSprites } from "./sprites.js";
-import { setupFlow } from "./flow.js";
 
 function init(): void {
   mountSprites();
-  setupFlow();
 }
 
 if (document.readyState === "loading") {

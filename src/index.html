@@ -7,151 +7,42 @@
     <title>Agent Pays Agent</title>
     <meta
       name="description"
-      content="A simulated 8-bit demo: two agents paying each other via x402, anchored by hardware."
+      content="An interactive pixel-art cartoon: two agents, one x402 payment, signed on hardware."
     />
 
+    <!-- Press Start 2P for titles / short UI; Inter for longer readable copy. -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=IBM+Plex+Mono:wght@400;500&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Inter:wght@400;500;600&display=swap"
       rel="stylesheet"
     />
 
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
-    <main class="page" role="main">
-      <header class="masthead">
-        <h1 class="title">Agent Pays Agent</h1>
-        <p class="subtitle">x402 payments, anchored by hardware</p>
-      </header>
-
-      <!-- ============================ SCENE ============================ -->
-      <section class="scene" id="scene" aria-label="Payment scene">
-        <div class="actors">
-          <!-- Agent A: the Buyer (left on desktop, top on mobile) -->
-          <div class="actor actor--a" id="agentA">
-            <div class="sprite-box sprite-box--actor" data-sprite="agentA"></div>
-            <div class="actor__name">Agent A</div>
-            <div class="actor__role">The Buyer</div>
-            <div class="actor__addr">from <code>0x5FbA...9c3D</code></div>
-          </div>
-
-          <!-- The service being sold -->
-          <div class="service" id="service">
-            <div class="sprite-box sprite-box--service" data-sprite="weather"></div>
-            <div class="service__name">Weather Oracle</div>
-            <div class="service__price">0.01 USDC / call</div>
-          </div>
-
-          <!-- Agent B: the Seller (right on desktop, below on mobile) -->
-          <div class="actor actor--b" id="agentB">
-            <div class="sprite-box sprite-box--actor" data-sprite="agentB"></div>
-            <div class="actor__name">Agent B</div>
-            <div class="actor__role">The Seller</div>
-            <div class="actor__addr">to <code>0x7E1f...A2c0</code></div>
+    <main class="stage" role="main">
+      <div class="stage__inner">
+        <!-- The hero sprite: Buyo, gently bobbing on the Base-blue stage. -->
+        <div class="hero">
+          <div class="hero__shadow" aria-hidden="true"></div>
+          <div class="hero__bob">
+            <div
+              class="hero__sprite"
+              data-sprite="buyo"
+              role="img"
+              aria-label="Buyo, the buyer agent"
+            ></div>
           </div>
         </div>
 
-        <!-- The gate: Ledger device (center) + facilitator -->
-        <div class="gate">
-          <div class="ledger" id="ledger">
-            <div class="sprite-box sprite-box--ledger" data-sprite="ledger">
-              <div class="ledger__screen" id="ledgerScreen">
-                <span class="ledger__screen-text" id="ledgerScreenText">READY</span>
-              </div>
-              <div class="ledger__stamp" id="ledgerStamp" hidden>SIGNED</div>
-            </div>
-            <div class="gate__label">Ledger device (the gate)</div>
-          </div>
+        <p class="hero__nameplate">Buyo</p>
 
-          <div class="facilitator" id="facilitator">
-            <div class="sprite-box sprite-box--facilitator" data-sprite="facilitator"></div>
-            <div class="facilitator__name">Facilitator</div>
-            <div class="facilitator__status" id="facilitatorStatus"></div>
-          </div>
-        </div>
-
-        <!-- Layer for moving pixel tokens; sits above the scene -->
-        <div class="tokens" id="tokens" aria-hidden="true"></div>
-      </section>
-
-      <!-- One-line caption for the current beat -->
-      <p class="caption" id="caption" role="status" aria-live="polite">
-        Press RUN THE EXCHANGE to watch Agent A pay Agent B.
-      </p>
-
-      <!-- ============================ CONTROLS ========================= -->
-      <div class="controls">
-        <button class="btn btn--run" id="runBtn" type="button">RUN THE EXCHANGE</button>
-        <button
-          class="btn btn--ghost"
-          id="explainBtn"
-          type="button"
-          aria-expanded="false"
-          aria-controls="explainPanel"
-        >
-          WHAT JUST HAPPENED?
-        </button>
+        <header class="masthead">
+          <h1 class="title">Agent Pays Agent</h1>
+          <p class="subtitle">Two agents, one x402 payment, signed on hardware.</p>
+        </header>
       </div>
-
-      <!-- ========================= EXPLANATION ========================= -->
-      <section class="explain" id="explainPanel" aria-label="Plain-language breakdown" hidden>
-        <h2 class="explain__title">What just happened?</h2>
-        <p class="explain__intro">
-          Two AI agents just completed a paid API call using x402, an open payment
-          standard. Here is each step in plain language.
-        </p>
-        <ol class="explain__steps">
-          <li>
-            <strong>Request.</strong> Agent A asked Agent B for the Weather Oracle by
-            calling <code>GET /weather</code>. No payment had been sent yet.
-          </li>
-          <li>
-            <strong>402 Payment Required.</strong> Agent B answered with HTTP status
-            402 and a price of 0.01 USDC on Base. The 402 status code is how x402
-            tells a client that payment is needed to continue.
-          </li>
-          <li>
-            <strong>Build the authorization.</strong> Agent A prepared an EIP-3009
-            <code>transferWithAuthorization</code> message. This is EIP-712 typed
-            data: a structured instruction that says move 0.01 USDC to Agent B,
-            without broadcasting a separate transaction first.
-          </li>
-          <li>
-            <strong>Sign on hardware.</strong> The authorization was handed to a
-            Ledger device. The screen showed the exact amount and recipient, and a
-            physical button press approved it. The private key stayed inside the
-            device the whole time. This is the one option this demo adds on top of
-            x402.
-          </li>
-          <li>
-            <strong>Settle on Base.</strong> The signed authorization went to a
-            facilitator, a small service that submits the payment to the Base
-            network. Base confirmed it in about two seconds.
-          </li>
-          <li>
-            <strong>Deliver.</strong> With payment settled, Agent B returned the
-            weather data to Agent A. The paid request was complete.
-          </li>
-        </ol>
-        <p class="explain__note">
-          All addresses, the nonce, the signature, and the transaction hash shown in
-          this demo are fake placeholders.
-        </p>
-      </section>
-
-      <!-- ===================== VERDICT & HONESTY ======================= -->
-      <footer class="outro">
-        <p class="verdict">
-          Paid with x402. Signed on hardware. Key never left the device.
-        </p>
-        <p class="friendly">
-          x402 makes agent payments fast and open. This demo adds one option: keep
-          the signing key in hardware.
-        </p>
-        <p class="sim-tag">Simulated demo. No real funds, no real network.</p>
-      </footer>
     </main>
 
     <script type="module" src="./main.js"></script>
