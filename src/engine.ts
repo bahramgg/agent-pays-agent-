@@ -151,13 +151,31 @@ async function playEntrance(): Promise<void> {
 }
 
 // ---- rendering ------------------------------------------------------------
+let currentSpeaker: Speaker = "narrator";
+
+/** Point the dialogue tail at the active speaker, measured live so it stays
+ *  aligned across screen sizes. Narrator/system center it. */
+function positionTail(): void {
+  const dRect = dialogueBox.getBoundingClientRect();
+  if (dRect.width === 0) return;
+  let centerX: number;
+  if (currentSpeaker === "buyo" || currentSpeaker === "sella") {
+    const fig = currentSpeaker === "buyo" ? buyoFig : sellaFig;
+    const r = fig.getBoundingClientRect();
+    centerX = r.left + r.width / 2 - dRect.left;
+  } else {
+    centerX = dRect.width / 2;
+  }
+  const margin = 18;
+  centerX = Math.max(margin, Math.min(dRect.width - margin, centerX));
+  dialogueBox.style.setProperty("--tail-x", `${Math.round(centerX)}px`);
+}
+
 function setActiveSpeaker(speaker: Speaker): void {
+  currentSpeaker = speaker;
   buyoFig.classList.toggle("is-active", speaker === "buyo");
   sellaFig.classList.toggle("is-active", speaker === "sella");
-  dialogueBox.classList.remove("from-left", "from-right", "from-center");
-  dialogueBox.classList.add(
-    speaker === "buyo" ? "from-left" : speaker === "sella" ? "from-right" : "from-center",
-  );
+  positionTail();
 }
 
 function renderDialogue(node: SceneNode): void {
@@ -336,6 +354,9 @@ export async function startEngine(): Promise<void> {
   sellaActor = new SpriteActor(el("sellaSprite"), "sella");
 
   initClearSign();
+
+  // Keep the dialogue tail pointing at the speaker as the layout changes.
+  window.addEventListener("resize", positionTail);
 
   await playEntrance();
 

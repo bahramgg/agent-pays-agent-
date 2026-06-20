@@ -19,20 +19,20 @@ const BASE: Palette = {
   W: "#ffffff", // white (face / eyes)
 };
 
-/** Buyo: a friendly azure robot (Base-blue family). */
+/** Buyo: a friendly green robot. */
 const BUYO_COLORS: Palette = {
-  C: "#1f9bff",
-  E: "#0064c8",
-  H: "#7fd0ff",
-  A: "#bfeaff",
+  C: "#2fb84a", // green body
+  E: "#1c7a31", // darker green shade
+  H: "#7fe08f", // lighter green highlight
+  A: "#c8ffd2", // antenna bulb
 };
 
-/** Sella: a teal robot, clearly distinct from Buyo. */
+/** Sella: a red robot, clearly distinct from Buyo. */
 const SELLA_COLORS: Palette = {
-  C: "#16b9a0",
-  E: "#0e8c78",
-  H: "#6fe0cd",
-  A: "#c4fff3",
+  C: "#ef4444", // red body
+  E: "#b01e1e", // darker red shade
+  H: "#ff8a8a", // lighter red highlight
+  A: "#ffd2d2", // antenna bulb
 };
 
 // --- heads (rows 0-13) carry each robot's identity -----------------------
