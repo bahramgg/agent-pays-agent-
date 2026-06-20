@@ -1,11 +1,11 @@
 // The cartoon engine. Plays the walk-in entrance, interprets the scene script
-// (scene.ts), renders dialogue and choices, runs the x402 actions (payment.ts),
-// and hands the payment to the Ledger Stax review + hold-to-sign (ledger.ts).
-// It also drives the DEMO / HOW IT WORKS tabs. Honest by construction: the wrap
-// line and honesty tag adapt to whether the signature is simulated or real.
+// (scene.ts), renders dialogue, choices, and an always-visible status step,
+// runs the x402 actions (payment.ts), and hands the payment to the clear-signing
+// card (clearsign.ts). It also drives the Demo / How it works / About / ? tabs.
+// Honest by construction: the wrap line and honesty tag adapt to the signer mode.
 
 import { SpriteActor } from "./actors.js";
-import { initLedger, runStaxReview, setIdle } from "./ledger.js";
+import { initClearSign, runClearSign, setCardState } from "./clearsign.js";
 import {
   buildAuthorization,
   fetchConfig,
@@ -20,8 +20,7 @@ import {
   type Signed,
   type TypedData,
 } from "./payment.js";
-import { createSpriteCanvas, SPRITES } from "./sprites.js";
-import { SCRIPT, START_NODE, type ActionKey, type SceneNode, type Speaker } from "./scene.js";
+import { SCRIPT, START_NODE, TOTAL_STEPS, type ActionKey, type SceneNode, type Speaker } from "./scene.js";
 
 const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
@@ -36,7 +35,6 @@ interface Ctx {
 }
 const ctx: Ctx = { config: { useRealSigner: false, network: "base" }, values: {} };
 
-// ---- DOM ------------------------------------------------------------------
 function el<T extends HTMLElement = HTMLElement>(id: string): T {
   const node = document.getElementById(id);
   if (!node) throw new Error(`Missing #${id}`);
@@ -44,11 +42,12 @@ function el<T extends HTMLElement = HTMLElement>(id: string): T {
 }
 
 let sceneEl: HTMLElement;
+let statusLine: HTMLElement;
 let dialogueBox: HTMLElement;
 let speakerName: HTMLElement;
 let dialogueText: HTMLElement;
 let choicesEl: HTMLElement;
-let staxPanel: HTMLElement;
+let signPanel: HTMLElement;
 let buyoFig: HTMLElement;
 let sellaFig: HTMLElement;
 let buyoActor: SpriteActor;
@@ -58,7 +57,7 @@ const SPEAKER_LABEL: Record<Speaker, string> = {
   buyo: "Buyo",
   sella: "Sella",
   narrator: "Narrator",
-  ledger: "Ledger Stax",
+  system: "Clear signing",
 };
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -66,16 +65,25 @@ const cap = (s: string) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
 const interpolate = (text: string) => text.replace(/\{(\w+)\}/g, (_, k) => ctx.values[k] ?? "");
 
 // ---- tabs -----------------------------------------------------------------
-function setTab(name: "demo" | "how"): void {
-  const demo = name === "demo";
-  el("tabDemo").classList.toggle("is-active", demo);
-  el("tabHow").classList.toggle("is-active", !demo);
-  el("tabDemo").setAttribute("aria-selected", String(demo));
-  el("tabHow").setAttribute("aria-selected", String(!demo));
-  el("viewDemo").classList.toggle("is-active", demo);
-  el("viewHow").classList.toggle("is-active", !demo);
-  el("viewDemo").toggleAttribute("hidden", !demo);
-  el("viewHow").toggleAttribute("hidden", demo);
+const TABS: Record<string, [string, string]> = {
+  demo: ["tabDemo", "viewDemo"],
+  how: ["tabHow", "viewHow"],
+  about: ["tabAbout", "viewAbout"],
+  help: ["tabHelp", "viewHelp"],
+};
+function setTab(name: string): void {
+  for (const [key, [tab, view]] of Object.entries(TABS)) {
+    const on = key === name;
+    el(tab).classList.toggle("is-active", on);
+    el(tab).setAttribute("aria-selected", String(on));
+    el(view).classList.toggle("is-active", on);
+    el(view).toggleAttribute("hidden", !on);
+  }
+}
+
+// ---- status line ----------------------------------------------------------
+function setStatus(step: number, label: string): void {
+  statusLine.innerHTML = `<span class="status__step">STEP ${step} OF ${TOTAL_STEPS}</span><span class="status__label">${label}</span>`;
 }
 
 // ---- actions (the x402 work) ---------------------------------------------
@@ -118,7 +126,7 @@ async function runAction(action: ActionKey): Promise<void> {
   }
 }
 
-// ---- entrance: agents walk in from the stage edges and meet ---------------
+// ---- entrance -------------------------------------------------------------
 async function playEntrance(): Promise<void> {
   speakerName.textContent = "";
   dialogueText.textContent = "…";
@@ -132,7 +140,6 @@ async function playEntrance(): Promise<void> {
     return;
   }
 
-  // Start each actor just past its edge of the stage, then walk to rest.
   const sceneRect = sceneEl.getBoundingClientRect();
   const bRect = buyoFig.getBoundingClientRect();
   const sRect = sellaFig.getBoundingClientRect();
@@ -145,14 +152,8 @@ async function playEntrance(): Promise<void> {
   sellaActor.startWalk(150);
 
   const opts: KeyframeAnimationOptions = { duration: 1500, easing: "steps(15, end)", fill: "forwards" };
-  const aB = buyoFig.animate(
-    [{ transform: `translateX(${-offB}px)` }, { transform: "translateX(0px)" }],
-    opts,
-  );
-  const aS = sellaFig.animate(
-    [{ transform: `translateX(${offS}px)` }, { transform: "translateX(0px)" }],
-    opts,
-  );
+  const aB = buyoFig.animate([{ transform: `translateX(${-offB}px)` }, { transform: "translateX(0px)" }], opts);
+  const aS = sellaFig.animate([{ transform: `translateX(${offS}px)` }, { transform: "translateX(0px)" }], opts);
   await Promise.all([aB.finished, aS.finished]);
 
   aB.cancel();
@@ -233,6 +234,7 @@ async function goTo(id: string): Promise<void> {
   if (!node) throw new Error(`Unknown node: ${id}`);
 
   busy = true;
+  setStatus(node.step, node.status);
   renderDialogue(node);
 
   if (node.action) {
@@ -248,33 +250,35 @@ async function goTo(id: string): Promise<void> {
     }
   }
 
-  // Beat 4: bring the Stax forward, then run review + hold-to-sign.
+  // Review and sign on the clear-signing card.
   if (node.approval) {
-    showWorking("Review on the Ledger Stax, then hold to sign.");
-    staxPanel.classList.add("is-foreground");
-    staxPanel.scrollIntoView({ behavior: reducedMotion ? "auto" : "smooth", block: "center" });
-    busy = false; // the device UI drives now
+    showWorking("Review the clear-signing card, then hold to sign.");
+    signPanel.classList.add("is-foreground");
+    signPanel.scrollIntoView({ behavior: reducedMotion ? "auto" : "smooth", block: "center" });
+    busy = false; // the card drives now
 
-    const outcome = await runStaxReview({
-      amountHuman: ctx.values.price ?? ctx.terms?.amountHuman ?? "",
-      recipientName: "Sella",
-      recipientAddr: ctx.values.payTo ?? ctx.terms?.payToDisplay ?? "",
-      networkLabel: ctx.values.network ?? "Base",
+    const outcome = await runClearSign({
+      action: "Sign payment authorization (x402)",
+      amount: ctx.values.price ?? ctx.terms?.amountHuman ?? "",
+      toName: "Sella",
+      toAddr: ctx.values.payTo ?? ctx.terms?.payToDisplay ?? "",
+      network: ctx.values.network ?? "Base",
+      nonce: ctx.values.nonce ?? "",
+      validUntil: ctx.values.expiry ?? "",
       reducedMotion,
     });
 
+    signPanel.classList.remove("is-foreground");
     if (outcome === "rejected") {
-      setIdle("cancelled");
-      staxPanel.classList.remove("is-foreground");
+      setCardState("cancelled");
       await goTo(node.onReject ?? START_NODE);
       return;
     }
 
-    setIdle("signed");
     const signed = await signAuthorization(ctx.typedData!);
     ctx.signed = signed;
     ctx.values.sigShort = shortHex(signed.signature, 10, 6);
-    staxPanel.classList.remove("is-foreground");
+    setCardState("signed", ctx.values.sigShort);
     await goTo(node.goto!);
     return;
   }
@@ -305,8 +309,7 @@ function resetState(): void {
   const wrapLine = ctx.values.wrapLine;
   ctx.values = {};
   if (wrapLine) ctx.values.wrapLine = wrapLine;
-  setIdle("ready");
-  staxPanel.classList.remove("is-foreground");
+  setCardState("idle");
 }
 
 async function restart(): Promise<void> {
@@ -318,7 +321,7 @@ async function restart(): Promise<void> {
   await goTo(START_NODE);
 }
 
-// ---- honesty: wrap line + tag adapt to the signer mode --------------------
+// ---- honesty --------------------------------------------------------------
 function applyHonestyCopy(config: Config): void {
   const wrapLine = config.useRealSigner
     ? "Paid with x402. Signed on a real Ledger emulator. Key never left the device."
@@ -326,34 +329,36 @@ function applyHonestyCopy(config: Config): void {
   ctx.values.wrapLine = wrapLine;
   el("verdict").textContent = wrapLine;
 
-  el("simTag").textContent = config.useRealSigner
+  const tag = config.useRealSigner
     ? "Real EIP-712 signature on the Ledger Speculos emulator. Settlement is simulated. No real funds."
     : "Simulated EIP-712 signature for now. Real Ledger Speculos signing arrives in a later phase. Settlement is simulated. No real funds.";
+  el("simTag").textContent = tag;
+  const aboutTag = document.getElementById("aboutTag");
+  if (aboutTag) aboutTag.textContent = tag;
 }
 
 // ---- bootstrap ------------------------------------------------------------
 export async function startEngine(): Promise<void> {
   sceneEl = el("scene");
+  statusLine = el("statusLine");
   dialogueBox = el("dialogue");
   speakerName = el("speakerName");
   dialogueText = el("dialogueText");
   choicesEl = el("choices");
-  staxPanel = el("staxPanel");
+  signPanel = el("signPanel");
   buyoFig = el("buyo");
   sellaFig = el("sella");
 
   buyoActor = new SpriteActor(el("buyoSprite"), "buyo");
   sellaActor = new SpriteActor(el("sellaSprite"), "sella");
 
-  const markHost = document.getElementById("ledgerMark");
-  if (markHost) markHost.appendChild(createSpriteCanvas(SPRITES.ledgerMark));
+  initClearSign();
 
-  initLedger();
+  for (const name of Object.keys(TABS)) {
+    const [tab] = TABS[name];
+    el<HTMLButtonElement>(tab).addEventListener("click", () => setTab(name));
+  }
 
-  el<HTMLButtonElement>("tabDemo").addEventListener("click", () => setTab("demo"));
-  el<HTMLButtonElement>("tabHow").addEventListener("click", () => setTab("how"));
-
-  // Walk the agents in first (no await before this, so they never flash at rest).
   await playEntrance();
 
   ctx.config = await fetchConfig();
