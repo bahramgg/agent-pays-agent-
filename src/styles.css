@@ -214,19 +214,12 @@ body {
   content: "";
   position: absolute;
   top: calc(var(--px) * -3 - 6px);
+  /* aligned to the active speaker by the engine (falls back to centered) */
+  left: var(--tail-x, 50%);
+  transform: translateX(-50%);
   border-left: calc(var(--px) * 2) solid transparent;
   border-right: calc(var(--px) * 2) solid transparent;
   border-bottom: calc(var(--px) * 2.5) solid var(--base-blue);
-}
-.dialogue.from-left::after {
-  left: 12%;
-}
-.dialogue.from-right::after {
-  right: 12%;
-}
-.dialogue.from-center::after {
-  left: 50%;
-  transform: translateX(-50%);
 }
 .dialogue__name {
   font-family: var(--font-mono);
