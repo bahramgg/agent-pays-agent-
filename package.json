@@ -16,5 +16,13 @@
   "devDependencies": {
     "esbuild": "^0.24.0",
     "typescript": "^5.6.0"
+  },
+  "comment:optionalDependencies": "Only needed for real Ledger signing (USE_REAL_SIGNER=true). They are optional so a failed/omitted install never breaks the simulated build or the Render deploy. See docs/speculos.md.",
+  "optionalDependencies": {
+    "@ledgerhq/device-management-kit": "*",
+    "@ledgerhq/device-signer-kit-ethereum": "*",
+    "@ledgerhq/device-transport-kit-speculos": "*",
+    "@ledgerhq/speculos-device-controller": "*",
+    "rxjs": "^7.8.1"
   }
 }

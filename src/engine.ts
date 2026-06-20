@@ -5,7 +5,7 @@
 // Honest by construction: the wrap line and honesty tag adapt to the signer mode.
 
 import { SpriteActor } from "./actors.js";
-import { initClearSign, runClearSign, setCardState } from "./clearsign.js";
+import { initClearSign, runClearSign, setCardState, setSignerMode } from "./clearsign.js";
 import {
   buildAuthorization,
   fetchConfig,
@@ -206,6 +206,26 @@ function showWorking(label: string): void {
   choicesEl.innerHTML = `<p class="choices__working">${label}</p>`;
 }
 
+/** Friendly recovery when the (real) Ledger signer cannot be reached. */
+function showSignerError(): void {
+  signPanel.classList.remove("is-foreground");
+  speakerName.textContent = SPEAKER_LABEL.system;
+  dialogueText.textContent =
+    "The Ledger signer could not be reached. Make sure Speculos is running, then try again.";
+  setActiveSpeaker("system");
+  choicesEl.innerHTML = "";
+  const mk = (label: string, goto: string) => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "choice";
+    btn.textContent = label;
+    btn.addEventListener("click", () => void goTo(goto));
+    choicesEl.appendChild(btn);
+  };
+  mk("Try again", "confirm");
+  mk("Start over", "__restart");
+}
+
 function workingLabel(action: ActionKey): string {
   switch (action) {
     case "fetch402":
@@ -278,7 +298,18 @@ async function goTo(id: string): Promise<void> {
       return;
     }
 
-    const signed = await signAuthorization(ctx.typedData!);
+    let signed;
+    try {
+      signed = await signAuthorization(ctx.typedData!);
+    } catch (err) {
+      // Real mode only: Speculos unreachable or the device action failed. Show a
+      // friendly message and let the player retry. Never fake a signature.
+      const detail = (err as Error).message || "The Ledger signer could not be reached.";
+      setCardState("error", detail);
+      showSignerError();
+      busy = false;
+      return;
+    }
     ctx.signed = signed;
     ctx.values.sigShort = shortHex(signed.signature, 10, 6);
     setCardState("signed", ctx.values.sigShort);
@@ -330,6 +361,7 @@ function applyHonestyCopy(config: Config): void {
     : "Paid with x402. Signed in a simulated Ledger flow. Key never left the device.";
   ctx.values.wrapLine = wrapLine;
   el("verdict").textContent = wrapLine;
+  setSignerMode(config.useRealSigner);
 }
 
 // ---- bootstrap ------------------------------------------------------------

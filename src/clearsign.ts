@@ -24,10 +24,17 @@ const BAR_STEPS = 16;
 
 let cardEl: HTMLElement;
 let lastData: SignData | null = null;
+let realMode = false;
 
 export function initClearSign(): void {
   cardEl = document.getElementById("signCard") as HTMLElement;
   setCardState("idle");
+}
+
+/** Tell the card whether signing is real (Speculos) or simulated, so the signed
+ *  state stays honest. */
+export function setSignerMode(real: boolean): void {
+  realMode = real;
 }
 
 const esc = (s: string) =>
@@ -46,7 +53,18 @@ function fieldsHtml(d: SignData): string {
 }
 
 /** Idle / terminal states of the card. */
-export function setCardState(state: "idle" | "signed" | "cancelled", sigShort?: string): void {
+export function setCardState(
+  state: "idle" | "signed" | "cancelled" | "error",
+  detail?: string,
+): void {
+  if (state === "error") {
+    cardEl.innerHTML = `
+      <div class="cs">
+        <span class="cs__badge cs__badge--bad">SIGNER UNAVAILABLE</span>
+        <p class="cs__idle">${esc(detail ?? "Could not reach the Ledger signer.")}</p>
+      </div>`;
+    return;
+  }
   if (state === "idle") {
     cardEl.innerHTML = `
       <div class="cs cs--idle">
@@ -65,12 +83,16 @@ export function setCardState(state: "idle" | "signed" | "cancelled", sigShort?: 
   }
   // signed
   const d = lastData;
+  const badge = realMode ? "SIGNED ON LEDGER" : "SIGNED (SIMULATED)";
+  const note = realMode
+    ? "Signed on the Ledger Speculos emulator. The key never left the device. Settlement is simulated."
+    : "The key never left the device. Settlement is simulated.";
   cardEl.innerHTML = `
     <div class="cs">
-      <span class="cs__badge cs__badge--good">SIGNED (SIMULATED)</span>
+      <span class="cs__badge cs__badge--good">${badge}</span>
       ${d ? fieldsHtml(d) : ""}
-      <div class="cs__sig">Signature <code>${esc(sigShort ?? "")}</code></div>
-      <p class="cs__note">The key never left the device. Settlement is simulated.</p>
+      <div class="cs__sig">Signature <code>${esc(detail ?? "")}</code></div>
+      <p class="cs__note">${note}</p>
     </div>`;
 }
 
