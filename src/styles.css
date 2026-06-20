@@ -1,43 +1,37 @@
 /* ==========================================================================
-   Agent Pays Agent -- Phase 0 style lock
-   Mobile-first. Base brand palette. True pixel-art rendering: hard edges only,
-   no soft gradients, blur, or soft shadows.
+   Agent Pays Agent -- interactive cartoon style system (Phases 0-3)
+   Mobile-first, playable in phone portrait. Base brand palette. True pixel-art
+   rendering: hard edges only, no soft gradients, blur, or soft shadows.
    ========================================================================== */
 
 :root {
-  /* --- Base brand palette ------------------------------------------------ */
   --base-blue: #0052ff; /* dominant */
   --white: #ffffff;
   --near-black: #0a0b0d;
 
-  /* Flat brand tints (solid steps, never gradients). */
   --base-blue-dark: #0040c8;
   --base-blue-light: #3d7bff;
+  --steel: #2b2f36; /* device edge */
+  --steel-dark: #1b1e24; /* device body accents */
 
-  /* --- Type -------------------------------------------------------------- */
   --font-pixel: "Press Start 2P", monospace;
   --font-text: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, Helvetica,
     Arial, sans-serif;
 
-  /* --- Pixel grid -------------------------------------------------------- */
-  /* One "pixel unit". Scale sprite motion + spacing in whole multiples. */
   --px: 4px;
-
   color-scheme: dark;
 }
 
 * {
   box-sizing: border-box;
 }
-
 html,
 body {
   margin: 0;
   padding: 0;
 }
-
 body {
-  background-color: var(--base-blue); /* Base Blue dominates the stage */
+  background-color: var(--base-blue); /* Base Blue dominates */
   color: var(--white);
   font-family: var(--font-text);
   -webkit-font-smoothing: antialiased;
@@ -45,112 +39,391 @@ body {
   overflow-x: hidden;
 }
 
-/* Every drawn sprite: hard, blocky upscaling, no smoothing. */
 .pixel-canvas {
   display: block;
   width: 100%;
   height: auto;
   image-rendering: pixelated;
-  image-rendering: crisp-edges; /* Firefox keyword fallback */
+  image-rendering: crisp-edges;
 }
 
-/* ==========================================================================
-   STAGE: mobile-first, one centered column on a Base-blue field
-   ========================================================================== */
-.stage {
+/* --- Page shell: mobile-first, single centered column -------------------- */
+.game {
   min-height: 100svh;
-  min-height: 100vh; /* fallback */
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: clamp(24px, 6vw, 56px);
-  padding-top: max(clamp(24px, 6vw, 56px), env(safe-area-inset-top));
-  padding-bottom: max(clamp(24px, 6vw, 56px), env(safe-area-inset-bottom));
-}
-
-.stage__inner {
+  min-height: 100vh;
   display: flex;
   flex-direction: column;
   align-items: center;
-  text-align: center;
-  gap: clamp(18px, 4vh, 32px);
+  gap: clamp(14px, 3.2vh, 26px);
   width: 100%;
-  max-width: 720px;
+  max-width: 760px;
+  margin: 0 auto;
+  padding: clamp(16px, 4.5vw, 40px);
+  padding-top: max(clamp(16px, 4.5vw, 40px), env(safe-area-inset-top));
+  padding-bottom: max(clamp(16px, 4.5vw, 40px), env(safe-area-inset-bottom));
 }
 
-/* --- Hero sprite + grounding ------------------------------------------- */
-.hero {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: flex-end;
-}
-
-/* Flat, hard-edged ground shadow (a solid ellipse, never a blur). */
-.hero__shadow {
-  position: absolute;
-  bottom: calc(var(--px) * -1.5);
-  left: 50%;
-  transform: translateX(-50%);
-  width: clamp(96px, 26vw, 150px);
-  height: clamp(12px, 3vw, 18px);
-  background: var(--base-blue-dark);
-  border-radius: 50%; /* rounded shape, but still a hard flat edge */
-}
-
-/* The bob wrapper animates; the shadow underneath stays put. */
-.hero__bob {
-  animation: idle-bob 1.6s linear infinite;
-}
-
-.hero__sprite {
-  width: clamp(128px, 40vw, 224px);
-  line-height: 0;
-}
-
-.hero__nameplate {
-  font-family: var(--font-pixel);
-  font-size: clamp(8px, 2.4vw, 12px);
-  letter-spacing: 0.08em;
-  color: var(--white);
-  background: var(--near-black);
-  padding: 6px 10px;
-  margin: 0;
-  /* Hard pixel offset block, never a soft shadow. */
-  box-shadow: var(--px) var(--px) 0 0 var(--base-blue-dark);
-}
-
-/* --- Title + subtitle --------------------------------------------------- */
+/* --- Masthead ------------------------------------------------------------ */
 .masthead {
-  display: flex;
-  flex-direction: column;
-  gap: clamp(10px, 2.4vh, 16px);
+  text-align: center;
 }
-
 .title {
   font-family: var(--font-pixel);
-  font-size: clamp(18px, 7vw, 40px);
+  font-size: clamp(15px, 5.5vw, 32px);
   line-height: 1.3;
-  letter-spacing: 0.02em;
   margin: 0;
   color: var(--white);
-  /* Hard pixel drop shadow: single flat offset, zero blur. */
   text-shadow: var(--px) var(--px) 0 var(--near-black);
 }
-
 .subtitle {
   font-family: var(--font-pixel);
-  font-size: clamp(8px, 2.6vw, 13px);
-  line-height: 1.8;
-  letter-spacing: 0.01em;
-  margin: 0;
+  font-size: clamp(7px, 2.1vw, 11px);
+  line-height: 1.7;
+  margin: 8px 0 0;
   color: var(--near-black);
 }
 
 /* ==========================================================================
-   ANIMATION: gentle idle bob, stepped to whole pixels (8-bit feel)
-   Per-keyframe steps() holds each level, then jumps -- no sub-pixel drift.
+   STAGE: two actors + the Ledger Nano gate
+   ========================================================================== */
+.stage {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: clamp(14px, 3.5vh, 28px);
+}
+
+.actors {
+  width: 100%;
+  display: flex;
+  justify-content: space-around;
+  align-items: flex-end;
+  gap: clamp(12px, 5vw, 48px);
+}
+
+.actor {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 4px;
+  /* a flat, hard transition for the active highlight */
+  transition: transform 120ms steps(2, end);
+}
+.actor.is-active {
+  transform: translateY(calc(var(--px) * -1));
+}
+.actor__bob {
+  animation: idle-bob 1.8s linear infinite;
+}
+.actor.is-active .actor__bob {
+  animation-duration: 1s; /* a touch livelier when speaking */
+}
+.actor__sprite {
+  width: clamp(72px, 22vw, 132px);
+  line-height: 0;
+  /* dark tile so the blue sprite reads on the blue stage */
+  background: var(--near-black);
+  border: var(--px) solid var(--near-black);
+  box-shadow: var(--px) var(--px) 0 0 var(--near-black);
+}
+.actor.is-active .actor__sprite {
+  box-shadow: var(--px) var(--px) 0 0 var(--white);
+}
+.actor__name {
+  font-family: var(--font-pixel);
+  font-size: clamp(8px, 2.4vw, 12px);
+  margin-top: 4px;
+}
+.actor__role {
+  font-family: var(--font-pixel);
+  font-size: clamp(6px, 1.8vw, 9px);
+  color: var(--near-black);
+  margin: 0;
+}
+
+/* --- The Ledger Nano (CSS-built, hard-edged, recognizable) --------------- */
+.ledger {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: clamp(212px, 74vw, 330px);
+  margin-top: clamp(8px, 3vw, 16px);
+}
+.ledger__buttons {
+  position: absolute;
+  top: calc(var(--px) * -2.5);
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  gap: clamp(72px, 30vw, 150px);
+  z-index: 2;
+}
+.ledger__btn {
+  width: clamp(30px, 8vw, 38px);
+  height: clamp(30px, 8vw, 38px);
+  border-radius: 50%;
+  background: var(--steel);
+  border: var(--px) solid var(--near-black);
+  cursor: pointer;
+  padding: 0;
+  transition: transform 70ms steps(2, end);
+}
+.ledger__btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+.ledger__btn--approve:not(:disabled) {
+  background: var(--base-blue);
+  box-shadow: 0 0 0 var(--px) var(--white);
+}
+.ledger__btn.is-pressed,
+.ledger__btn:active:not(:disabled) {
+  transform: translateY(var(--px));
+}
+.ledger__device {
+  position: relative;
+  width: 100%;
+  background: var(--near-black);
+  border: var(--px) solid var(--steel);
+  padding: clamp(16px, 4.5vw, 22px) clamp(14px, 4vw, 20px) clamp(14px, 4vw, 18px);
+}
+.ledger__screen {
+  background: var(--near-black);
+  border: 2px solid var(--steel);
+  min-height: clamp(74px, 22vw, 104px);
+  padding: clamp(8px, 2.4vw, 12px);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: clamp(3px, 1vw, 6px);
+}
+.ledger.is-lit .ledger__screen {
+  background: var(--base-blue-dark);
+}
+.ledger__line {
+  font-family: var(--font-pixel);
+  font-size: clamp(6px, 1.9vw, 9px);
+  line-height: 1.5;
+  color: var(--white);
+  word-break: break-word;
+}
+.ledger__hint {
+  color: var(--base-blue-light);
+}
+.ledger__label {
+  font-family: var(--font-pixel);
+  font-size: clamp(6px, 1.8vw, 9px);
+  color: var(--near-black);
+  margin: 0;
+}
+
+/* ==========================================================================
+   DIALOGUE BOX (with a tail pointing toward the speaker)
+   ========================================================================== */
+.dialogue {
+  position: relative;
+  width: 100%;
+  background: var(--near-black);
+  border: var(--px) solid var(--near-black);
+  box-shadow: var(--px) var(--px) 0 0 var(--base-blue-dark);
+  padding: clamp(14px, 4vw, 22px);
+  min-height: clamp(96px, 20vh, 132px);
+}
+.dialogue::after {
+  content: "";
+  position: absolute;
+  top: calc(var(--px) * -3);
+  border-left: calc(var(--px) * 2.5) solid transparent;
+  border-right: calc(var(--px) * 2.5) solid transparent;
+  border-bottom: calc(var(--px) * 3) solid var(--near-black);
+}
+.dialogue.from-left::after {
+  left: 16%;
+}
+.dialogue.from-right::after {
+  right: 16%;
+}
+.dialogue.from-center::after {
+  left: 50%;
+  transform: translateX(-50%);
+}
+.dialogue__name {
+  font-family: var(--font-pixel);
+  font-size: clamp(9px, 2.6vw, 13px);
+  color: var(--base-blue-light);
+  margin: 0 0 10px;
+}
+.dialogue__text {
+  font-family: var(--font-text);
+  font-size: clamp(14px, 3.4vw, 18px);
+  line-height: 1.55;
+  margin: 0;
+  color: var(--white);
+}
+
+/* ==========================================================================
+   CHOICES
+   ========================================================================== */
+.choices {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: clamp(8px, 2vw, 12px);
+  min-height: clamp(48px, 9vh, 64px);
+}
+.choice {
+  width: 100%;
+  font-family: var(--font-pixel);
+  font-size: clamp(9px, 2.5vw, 13px);
+  line-height: 1.5;
+  text-align: left;
+  cursor: pointer;
+  color: var(--base-blue);
+  background: var(--white);
+  border: var(--px) solid var(--near-black);
+  box-shadow: var(--px) var(--px) 0 0 var(--near-black);
+  padding: clamp(12px, 3.2vw, 16px) clamp(14px, 4vw, 18px);
+  transition: transform 70ms steps(2, end);
+}
+.choice:hover {
+  background: var(--base-blue-light);
+  color: var(--white);
+}
+.choice:active {
+  transform: translate(var(--px), var(--px));
+  box-shadow: none;
+}
+.choice:focus-visible {
+  outline: var(--px) solid var(--white);
+  outline-offset: var(--px);
+}
+.choices__working {
+  font-family: var(--font-text);
+  font-size: clamp(13px, 3vw, 16px);
+  font-style: italic;
+  color: var(--white);
+  margin: 0;
+  padding: clamp(10px, 3vw, 14px) 0;
+}
+
+/* ==========================================================================
+   EXPLAINER (readable, non-pixel font)
+   ========================================================================== */
+.explain {
+  position: relative;
+  width: 100%;
+  background: var(--white);
+  color: var(--near-black);
+  border: var(--px) solid var(--near-black);
+  box-shadow: var(--px) var(--px) 0 0 var(--near-black);
+  padding: clamp(18px, 5vw, 30px);
+  font-family: var(--font-text);
+  font-size: clamp(14px, 2.7vw, 16px);
+  line-height: 1.6;
+}
+.explain p {
+  margin: 0 0 14px;
+}
+.explain__close {
+  position: absolute;
+  top: clamp(10px, 3vw, 16px);
+  right: clamp(10px, 3vw, 16px);
+  font-family: var(--font-pixel);
+  font-size: clamp(8px, 2.2vw, 10px);
+  cursor: pointer;
+  color: var(--white);
+  background: var(--near-black);
+  border: var(--px) solid var(--near-black);
+  padding: 8px 10px;
+}
+.explain__title {
+  font-family: var(--font-pixel);
+  font-size: clamp(13px, 3.6vw, 18px);
+  color: var(--base-blue);
+  margin: 0 0 14px;
+  padding-right: 64px;
+}
+.explain__steps {
+  margin: 0 0 14px;
+  padding-left: 1.4em;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.explain__steps strong {
+  color: var(--base-blue);
+}
+.explain code {
+  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  background: rgba(0, 82, 255, 0.1);
+  padding: 1px 4px;
+}
+.explain__friendly {
+  font-weight: 600;
+}
+.explain__note {
+  margin: 0;
+  font-size: clamp(13px, 2.4vw, 15px);
+  color: var(--base-blue-dark);
+  border-top: 2px solid rgba(10, 11, 13, 0.15);
+  padding-top: 14px;
+}
+
+/* ==========================================================================
+   WRAP & HONESTY
+   ========================================================================== */
+.outro {
+  width: 100%;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.verdict {
+  font-family: var(--font-pixel);
+  font-size: clamp(9px, 2.4vw, 13px);
+  line-height: 1.7;
+  color: var(--white);
+  text-shadow: var(--px) var(--px) 0 var(--near-black);
+  margin: 0;
+}
+.sim-tag {
+  font-family: var(--font-text);
+  font-size: clamp(11px, 2.3vw, 13px);
+  line-height: 1.5;
+  color: var(--near-black);
+  margin: 0;
+  opacity: 0.9;
+}
+
+/* ==========================================================================
+   DESKTOP / WIDE
+   ========================================================================== */
+@media (min-width: 720px) {
+  .actors {
+    justify-content: space-between;
+    padding: 0 clamp(20px, 6vw, 64px);
+  }
+  .choices {
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .choice {
+    width: auto;
+    flex: 1 1 240px;
+    text-align: center;
+  }
+}
+
+/* ==========================================================================
+   ANIMATIONS (stepped, 8-bit feel)
    ========================================================================== */
 @keyframes idle-bob {
   0% {
@@ -174,11 +447,48 @@ body {
   }
 }
 
+.fade-in {
+  animation: fade-in 220ms steps(3, end) both;
+}
+@keyframes fade-in {
+  from {
+    opacity: 0.2;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes shake {
+  0%, 100% { transform: translate(0, 0); }
+  25% { transform: translate(-3px, 1px); }
+  50% { transform: translate(3px, -1px); }
+  75% { transform: translate(-2px, 2px); }
+}
+.ledger.is-signing .ledger__device {
+  animation: shake 320ms steps(2, end) 2;
+}
+.ledger.is-signing.is-lit .ledger__screen {
+  animation: screen-flash 150ms steps(1, end) 3;
+}
+@keyframes screen-flash {
+  0%, 100% { background: var(--base-blue-dark); }
+  50% { background: var(--white); }
+}
+
 /* ==========================================================================
-   REDUCED MOTION: hold the sprite still
+   REDUCED MOTION: calmer, but fully functional
    ========================================================================== */
 @media (prefers-reduced-motion: reduce) {
-  .hero__bob {
-    animation: none;
+  .actor__bob,
+  .fade-in,
+  .ledger.is-signing .ledger__device,
+  .ledger.is-signing.is-lit .ledger__screen {
+    animation: none !important;
+  }
+  .actor,
+  .choice,
+  .ledger__btn {
+    transition: none !important;
   }
 }

@@ -1,9 +1,10 @@
-// Entry point. Phase 0 just draws the Buyo sprite; the CSS handles the idle bob.
-// Later phases will add the dialogue/choice engine and the x402 + Ledger flow.
+// Entry point: draw the sprites, then start the cartoon engine.
 import { mountSprites } from "./sprites.js";
+import { startEngine } from "./engine.js";
 
 function init(): void {
   mountSprites();
+  void startEngine();
 }
 
 if (document.readyState === "loading") {
