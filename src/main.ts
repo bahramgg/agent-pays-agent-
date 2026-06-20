@@ -1,9 +1,7 @@
-// Entry point: draw the sprites, then start the cartoon engine.
-import { mountSprites } from "./sprites.js";
+// Entry point: start the cartoon engine (it creates the actors and the device).
 import { startEngine } from "./engine.js";
 
 function init(): void {
-  mountSprites();
   void startEngine();
 }
 

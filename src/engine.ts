@@ -1,8 +1,11 @@
-// The cartoon engine. Interprets the scene script (scene.ts), renders dialogue
-// and choices, runs the x402 actions (payment.ts), and handles the Ledger Nano
-// button-press approval. Honest by construction: the on-screen wrap line and
-// honesty tag adapt to whether the signature is simulated or real.
+// The cartoon engine. Plays the walk-in entrance, interprets the scene script
+// (scene.ts), renders dialogue and choices, runs the x402 actions (payment.ts),
+// and hands the payment to the Ledger Stax review + hold-to-sign (ledger.ts).
+// Honest by construction: the wrap line and honesty tag adapt to whether the
+// signature is simulated or real.
 
+import { SpriteActor } from "./actors.js";
+import { initLedger, runStaxReview, setIdle } from "./ledger.js";
 import {
   buildAuthorization,
   fetchConfig,
@@ -17,11 +20,11 @@ import {
   type Signed,
   type TypedData,
 } from "./payment.js";
+import { createSpriteCanvas, SPRITES } from "./sprites.js";
 import { SCRIPT, START_NODE, type ActionKey, type SceneNode, type Speaker } from "./scene.js";
 
 const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-// ---- live state -----------------------------------------------------------
 interface Ctx {
   config: Config;
   terms?: PaymentTerms;
@@ -31,7 +34,6 @@ interface Ctx {
   forecast?: Forecast;
   values: Record<string, string>;
 }
-
 const ctx: Ctx = { config: { useRealSigner: false, network: "base" }, values: {} };
 
 // ---- DOM ------------------------------------------------------------------
@@ -45,24 +47,21 @@ let dialogueBox: HTMLElement;
 let speakerName: HTMLElement;
 let dialogueText: HTMLElement;
 let choicesEl: HTMLElement;
-let ledgerEl: HTMLElement;
-let ledgerScreen: HTMLElement;
-let approveBtn: HTMLButtonElement;
-let rejectBtn: HTMLButtonElement;
+let buyoFig: HTMLElement;
+let sellaFig: HTMLElement;
+let buyoActor: SpriteActor;
+let sellaActor: SpriteActor;
 
 const SPEAKER_LABEL: Record<Speaker, string> = {
   buyo: "Buyo",
   sella: "Sella",
   narrator: "Narrator",
-  ledger: "Ledger Nano",
+  ledger: "Ledger Stax",
 };
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const cap = (s: string) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
-
-function interpolate(text: string): string {
-  return text.replace(/\{(\w+)\}/g, (_, k) => ctx.values[k] ?? "");
-}
+const interpolate = (text: string) => text.replace(/\{(\w+)\}/g, (_, k) => ctx.values[k] ?? "");
 
 // ---- actions (the x402 work) ---------------------------------------------
 async function runAction(action: ActionKey): Promise<void> {
@@ -74,19 +73,15 @@ async function runAction(action: ActionKey): Promise<void> {
       ctx.values.network = cap(terms.network);
       ctx.values.payTo = terms.payToDisplay;
       ctx.values.nonce = shortHex(terms.nonce, 8, 6);
-      ctx.values.expiry = new Date(Number(terms.validBefore) * 1000).toLocaleTimeString(
-        [],
-        { hour: "2-digit", minute: "2-digit" },
-      );
+      ctx.values.expiry = new Date(Number(terms.validBefore) * 1000).toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
       break;
     }
     case "buildAuth": {
       if (!ctx.terms) throw new Error("no terms");
       ctx.typedData = buildAuthorization(ctx.terms);
-      break;
-    }
-    case "prepareScreen": {
-      loadLedgerScreen();
       break;
     }
     case "settle": {
@@ -108,111 +103,56 @@ async function runAction(action: ActionKey): Promise<void> {
   }
 }
 
-// ---- Ledger Nano ----------------------------------------------------------
-function loadLedgerScreen(): void {
-  const t = ctx.terms;
-  if (!t) return;
-  const lines = [
-    "REVIEW & APPROVE",
-    `Transfer ${t.amountHuman}`,
-    `To ${t.payToDisplay}`,
-    `Network ${cap(t.network)}`,
-    `Nonce ${shortHex(t.nonce, 6, 4)}`,
-  ];
-  ledgerScreen.innerHTML = "";
-  for (const line of lines) {
-    const div = document.createElement("div");
-    div.className = "ledger__line";
-    div.textContent = line;
-    ledgerScreen.appendChild(div);
+// ---- entrance: agents walk in from the edges and meet ---------------------
+async function playEntrance(): Promise<void> {
+  speakerName.textContent = "";
+  dialogueText.textContent = "…";
+  choicesEl.innerHTML = "";
+
+  if (reducedMotion) {
+    buyoActor.stopWalk();
+    sellaActor.stopWalk();
+    buyoFig.style.transform = "";
+    sellaFig.style.transform = "";
+    return;
   }
-  ledgerEl.classList.add("is-lit");
-}
 
-function clearLedgerScreen(): void {
-  ledgerScreen.innerHTML = '<div class="ledger__line">READY</div>';
-  ledgerEl.classList.remove("is-lit", "is-active", "is-signing");
-}
+  // Start each actor just past its edge of the viewport, then walk to rest.
+  const bRect = buyoFig.getBoundingClientRect();
+  const sRect = sellaFig.getBoundingClientRect();
+  const offB = bRect.right + 32;
+  const offS = window.innerWidth - sRect.left + 32;
+  buyoFig.style.transform = `translateX(${-offB}px)`;
+  sellaFig.style.transform = `translateX(${offS}px)`;
 
-let clinkCtx: AudioContext | null = null;
-function playClink(): void {
-  if (reducedMotion) return;
-  try {
-    const Ctor =
-      window.AudioContext ||
-      (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-    clinkCtx = clinkCtx || new Ctor();
-    const c = clinkCtx;
-    void c.resume();
-    [
-      { f: 880, t: 0, d: 0.07 },
-      { f: 1320, t: 0.06, d: 0.11 },
-    ].forEach(({ f, t, d }) => {
-      const osc = c.createOscillator();
-      const gain = c.createGain();
-      osc.type = "square";
-      osc.frequency.value = f;
-      gain.gain.setValueAtTime(0.0001, c.currentTime + t);
-      gain.gain.exponentialRampToValueAtTime(0.1, c.currentTime + t + 0.01);
-      gain.gain.exponentialRampToValueAtTime(0.0001, c.currentTime + t + d);
-      osc.connect(gain).connect(c.destination);
-      osc.start(c.currentTime + t);
-      osc.stop(c.currentTime + t + d + 0.02);
-    });
-  } catch {
-    /* audio is a nicety */
-  }
-}
+  buyoActor.startWalk(150);
+  sellaActor.startWalk(150);
 
-/** Beat 4: enable the buttons and resolve when the user approves. */
-function waitForApproval(): Promise<void> {
-  ledgerEl.classList.add("is-active");
-  approveBtn.disabled = false;
-  rejectBtn.disabled = false;
+  const opts: KeyframeAnimationOptions = { duration: 1500, easing: "steps(15, end)", fill: "forwards" };
+  const aB = buyoFig.animate(
+    [{ transform: `translateX(${-offB}px)` }, { transform: "translateX(0px)" }],
+    opts,
+  );
+  const aS = sellaFig.animate(
+    [{ transform: `translateX(${offS}px)` }, { transform: "translateX(0px)" }],
+    opts,
+  );
+  await Promise.all([aB.finished, aS.finished]);
 
-  return new Promise<void>((resolve) => {
-    const onApprove = async () => {
-      cleanup();
-      approveBtn.classList.add("is-pressed");
-      ledgerEl.classList.add("is-signing");
-      playClink();
-      await sleep(reducedMotion ? 60 : 420);
-      ledgerEl.classList.remove("is-signing");
-      approveBtn.classList.remove("is-pressed");
-
-      // Sign now (simulated server-side; Ledger Speculos in Phase 4).
-      if (!ctx.typedData) throw new Error("no typedData to sign");
-      const signed = await signAuthorization(ctx.typedData);
-      ctx.signed = signed;
-      ctx.values.sigShort = shortHex(signed.signature, 10, 6);
-      ledgerScreen.innerHTML = '<div class="ledger__line">APPROVED ✓</div>';
-      resolve();
-    };
-    const onReject = () => {
-      // Gentle nudge; the demo path needs an approval to continue.
-      const hint = ledgerScreen.querySelector(".ledger__hint");
-      if (!hint) {
-        const h = document.createElement("div");
-        h.className = "ledger__line ledger__hint";
-        h.textContent = "Press the right button to approve.";
-        ledgerScreen.appendChild(h);
-      }
-    };
-    function cleanup() {
-      approveBtn.disabled = true;
-      rejectBtn.disabled = true;
-      approveBtn.removeEventListener("click", onApprove);
-      rejectBtn.removeEventListener("click", onReject);
-    }
-    approveBtn.addEventListener("click", onApprove);
-    rejectBtn.addEventListener("click", onReject);
-  });
+  // Cancel so the forwards-fill stops overriding the CSS transform (used by the
+  // active-speaker highlight); the actors rest at their natural position.
+  aB.cancel();
+  aS.cancel();
+  buyoActor.stopWalk();
+  sellaActor.stopWalk();
+  buyoFig.style.transform = "";
+  sellaFig.style.transform = "";
 }
 
 // ---- rendering ------------------------------------------------------------
 function setActiveSpeaker(speaker: Speaker): void {
-  el("buyo").classList.toggle("is-active", speaker === "buyo");
-  el("sella").classList.toggle("is-active", speaker === "sella");
+  buyoFig.classList.toggle("is-active", speaker === "buyo");
+  sellaFig.classList.toggle("is-active", speaker === "sella");
   dialogueBox.classList.remove("from-left", "from-right", "from-center");
   dialogueBox.classList.add(
     speaker === "buyo" ? "from-left" : speaker === "sella" ? "from-right" : "from-center",
@@ -225,7 +165,7 @@ function renderDialogue(node: SceneNode): void {
   setActiveSpeaker(node.speaker);
   if (!reducedMotion) {
     dialogueText.classList.remove("fade-in");
-    void dialogueText.offsetWidth; // restart the animation
+    void dialogueText.offsetWidth;
     dialogueText.classList.add("fade-in");
   }
 }
@@ -238,15 +178,26 @@ function renderChoices(node: SceneNode): void {
     btn.type = "button";
     btn.className = "choice";
     btn.textContent = choice.label;
-    btn.addEventListener("click", () => {
-      void goTo(choice.goto);
-    });
+    btn.addEventListener("click", () => void goTo(choice.goto));
     choicesEl.appendChild(btn);
   }
 }
 
 function showWorking(label: string): void {
   choicesEl.innerHTML = `<p class="choices__working">${label}</p>`;
+}
+
+function workingLabel(action: ActionKey): string {
+  switch (action) {
+    case "fetch402":
+      return "Requesting the resource… (expecting a 402)";
+    case "buildAuth":
+      return "Constructing the EIP-712 authorization…";
+    case "settle":
+      return "Settling on Base… (simulated)";
+    default:
+      return "Working…";
+  }
 }
 
 // ---- navigation -----------------------------------------------------------
@@ -260,8 +211,8 @@ async function goTo(id: string): Promise<void> {
     return;
   }
   if (id === "__restart") {
-    await runAction("reset");
-    id = START_NODE;
+    await restart();
+    return;
   }
 
   const node = SCRIPT[id];
@@ -270,7 +221,6 @@ async function goTo(id: string): Promise<void> {
   busy = true;
   renderDialogue(node);
 
-  // Run the node's side effect (real 402, build auth, settle, ...).
   if (node.action) {
     showWorking(workingLabel(node.action));
     try {
@@ -284,17 +234,30 @@ async function goTo(id: string): Promise<void> {
     }
   }
 
-  // Beat 4: physical approval, then sign, then continue.
+  // Beat 4: the Ledger Stax review + hold-to-sign.
   if (node.approval) {
-    showWorking("Awaiting your approval on the Ledger Nano…");
-    busy = false; // allow the button handlers to drive
-    await waitForApproval();
-    busy = true;
-    if (node.goto) {
-      busy = false;
-      await goTo(node.goto);
+    showWorking("Review on the Ledger Stax, then hold to sign.");
+    busy = false; // the device UI drives now
+    const outcome = await runStaxReview({
+      amountHuman: ctx.values.price ?? ctx.terms?.amountHuman ?? "",
+      recipientName: "Sella",
+      recipientAddr: ctx.values.payTo ?? ctx.terms?.payToDisplay ?? "",
+      networkLabel: ctx.values.network ?? "Base",
+      reducedMotion,
+    });
+
+    if (outcome === "rejected") {
+      setIdle("cancelled");
+      await goTo(node.onReject ?? START_NODE);
       return;
     }
+
+    setIdle("signed");
+    const signed = await signAuthorization(ctx.typedData!);
+    ctx.signed = signed;
+    ctx.values.sigShort = shortHex(signed.signature, 10, 6);
+    await goTo(node.goto!);
+    return;
   }
 
   if (node.choices) {
@@ -313,20 +276,7 @@ async function goTo(id: string): Promise<void> {
   busy = false;
 }
 
-function workingLabel(action: ActionKey): string {
-  switch (action) {
-    case "fetch402":
-      return "Requesting the resource… (expecting a 402)";
-    case "buildAuth":
-      return "Constructing the EIP-712 authorization…";
-    case "settle":
-      return "Settling on Base… (simulated)";
-    default:
-      return "Working…";
-  }
-}
-
-// ---- explainer + reset ----------------------------------------------------
+// ---- explainer + restart --------------------------------------------------
 function openExplainer(): void {
   const panel = el("explainPanel");
   panel.removeAttribute("hidden");
@@ -343,8 +293,16 @@ function resetState(): void {
   const wrapLine = ctx.values.wrapLine;
   ctx.values = {};
   if (wrapLine) ctx.values.wrapLine = wrapLine;
-  clearLedgerScreen();
+  setIdle("ready");
   el("explainPanel").setAttribute("hidden", "");
+}
+
+async function restart(): Promise<void> {
+  busy = true;
+  resetState();
+  await playEntrance();
+  busy = false;
+  await goTo(START_NODE);
 }
 
 // ---- honesty: wrap line + tag adapt to the signer mode --------------------
@@ -366,19 +324,26 @@ export async function startEngine(): Promise<void> {
   speakerName = el("speakerName");
   dialogueText = el("dialogueText");
   choicesEl = el("choices");
-  ledgerEl = el("ledger");
-  ledgerScreen = el("ledgerScreen");
-  approveBtn = el<HTMLButtonElement>("ledgerApprove");
-  rejectBtn = el<HTMLButtonElement>("ledgerReject");
+  buyoFig = el("buyo");
+  sellaFig = el("sella");
 
-  approveBtn.disabled = true;
-  rejectBtn.disabled = true;
-  clearLedgerScreen();
+  buyoActor = new SpriteActor(el("buyoSprite"), "buyo");
+  sellaActor = new SpriteActor(el("sellaSprite"), "sella");
 
-  el<HTMLButtonElement>("explainClose").addEventListener("click", () => {
-    el("explainPanel").setAttribute("hidden", "");
-  });
+  // Draw the Ledger mark onto the Stax bottom bar.
+  const markHost = document.getElementById("ledgerMark");
+  if (markHost) markHost.appendChild(createSpriteCanvas(SPRITES.ledgerMark));
 
+  initLedger();
+
+  el<HTMLButtonElement>("explainClose").addEventListener("click", () =>
+    el("explainPanel").setAttribute("hidden", ""),
+  );
+
+  // Walk the agents in first (no await before this, so they never flash at rest).
+  await playEntrance();
+
+  // Then load config and set the honest wrap line / tag (used much later).
   ctx.config = await fetchConfig();
   applyHonestyCopy(ctx.config);
 

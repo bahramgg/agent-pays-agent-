@@ -7,13 +7,13 @@
     <title>Agent Pays Agent</title>
     <meta
       name="description"
-      content="An interactive pixel-art cartoon: two agents, one x402 payment, signed on hardware."
+      content="An interactive pixel-art cartoon: two agents, one x402 payment, signed on a Ledger Stax."
     />
 
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Inter:wght@400;500;600&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Inter:wght@400;500;600;700&display=swap"
       rel="stylesheet"
     />
 
@@ -29,12 +29,12 @@
       <!-- ============================ STAGE ============================ -->
       <section class="stage" aria-label="The scene">
         <div class="actors">
-          <!-- Buyo, the buyer (left) -->
+          <!-- Buyo walks in from the left -->
           <figure class="actor actor--buyo" id="buyo">
             <div class="actor__bob">
               <div
                 class="actor__sprite"
-                data-sprite="buyo"
+                id="buyoSprite"
                 role="img"
                 aria-label="Buyo, the buyer agent"
               ></div>
@@ -43,12 +43,12 @@
             <p class="actor__role">The Buyer</p>
           </figure>
 
-          <!-- Sella, the seller (right) -->
+          <!-- Sella walks in from the right -->
           <figure class="actor actor--sella" id="sella">
             <div class="actor__bob">
               <div
                 class="actor__sprite"
-                data-sprite="sella"
+                id="sellaSprite"
                 role="img"
                 aria-label="Sella, the seller agent"
               ></div>
@@ -58,40 +58,23 @@
           </figure>
         </div>
 
-        <!-- The gate: a recognizable pixel Ledger Nano (CSS-built, hard edges) -->
-        <div class="ledger" id="ledger">
-          <div class="ledger__buttons">
-            <button
-              class="ledger__btn"
-              id="ledgerReject"
-              type="button"
-              aria-label="Left button (review again)"
-            ></button>
-            <button
-              class="ledger__btn ledger__btn--approve"
-              id="ledgerApprove"
-              type="button"
-              aria-label="Right button (approve)"
-            ></button>
-          </div>
-          <div class="ledger__device">
-            <div class="ledger__screen" id="ledgerScreen">
-              <div class="ledger__line">READY</div>
+        <!-- The gate: a recognizable pixel-art Ledger Stax -->
+        <div class="stax" id="ledger">
+          <div class="stax__body">
+            <span class="stax__side-btn" aria-hidden="true"></span>
+            <div class="stax__screen" id="ledgerScreen"></div>
+            <div class="stax__bar">
+              <span class="stax__mark" id="ledgerMark" aria-hidden="true"></span>
             </div>
           </div>
-          <p class="ledger__label">Ledger Nano (the gate)</p>
+          <p class="stax__label">Ledger Stax (the gate)</p>
         </div>
       </section>
 
       <!-- ========================= DIALOGUE BOX ========================= -->
-      <section
-        class="dialogue from-center"
-        id="dialogue"
-        aria-live="polite"
-        aria-label="Dialogue"
-      >
-        <p class="dialogue__name" id="speakerName">Narrator</p>
-        <p class="dialogue__text" id="dialogueText">Loading…</p>
+      <section class="dialogue from-center" id="dialogue" aria-live="polite" aria-label="Dialogue">
+        <p class="dialogue__name" id="speakerName"></p>
+        <p class="dialogue__text" id="dialogueText">…</p>
       </section>
 
       <!-- ========================== CHOICES ============================ -->
@@ -125,10 +108,11 @@
             separate transaction first.
           </li>
           <li>
-            <strong>Sign on hardware.</strong> The message went to a Ledger Nano. The
-            screen showed the amount and recipient in plain text, and a button press
-            approved it. The private key stayed on the device the whole time. That is
-            the one option this demo adds on top of x402.
+            <strong>Review and sign on hardware.</strong> The message went to a Ledger
+            Stax. The touchscreen showed the amount, recipient, and network across
+            paged review screens, and a press and hold approved it. The private key
+            stayed on the device the whole time. That is the one option this demo adds
+            on top of x402.
           </li>
           <li>
             <strong>Settle on Base.</strong> The signed authorization went to a
