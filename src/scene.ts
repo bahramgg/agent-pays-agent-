@@ -12,7 +12,6 @@ export type Speaker = "buyo" | "sella" | "narrator" | "ledger";
 export type ActionKey =
   | "fetch402" // beat 2: real GET -> real HTTP 402 + x402 terms
   | "buildAuth" // beat 3: construct the EIP-712 transferWithAuthorization
-  | "prepareScreen" // beat 4: load human-readable fields onto the Ledger screen
   | "settle" // beat 5: send signed X-PAYMENT, simulated settlement
   | "reset"; // wrap: clear state to play again
 
@@ -29,8 +28,10 @@ export interface SceneNode {
   text: string;
   /** Optional async side effect to run before showing choices. */
   action?: ActionKey;
-  /** Beat 4 only: wait for the physical Ledger button press, then sign. */
+  /** Beat 4 only: run the Ledger Stax review + hold-to-sign, then sign. */
   approval?: boolean;
+  /** Beat 4 only: where to go if the user rejects on the device. */
+  onReject?: string;
   /** Player choices; if absent, `goto` auto-advances. */
   choices?: Choice[];
   goto?: string;
@@ -42,16 +43,16 @@ export const SCRIPT: Record<string, SceneNode> = {
   start: {
     beat: 1,
     speaker: "buyo",
-    text: "Morning, Sella! I am routing a delivery drone and I need today's forecast.",
+    text: "Sella! My drone is about to fly into a cloud I cannot see. Tell me you sell weather.",
     choices: [
-      { label: "“Can your Weather Oracle help?”", goto: "offer" },
-      { label: "“Got anything quick and paid?”", goto: "offer" },
+      { label: "“Does the Weather Oracle take agents?”", goto: "offer" },
+      { label: "“Something quick I can just pay for?”", goto: "offer" },
     ],
   },
   offer: {
     beat: 1,
     speaker: "sella",
-    text: "Absolutely. My Weather Oracle is open over x402. One call is 0.01 USDC on Base. Fast and open.",
+    text: "Do I ever. The Weather Oracle is open over x402. One call, 0.01 USDC on Base. Fast, open, no account needed.",
     choices: [{ label: "Request the forecast", goto: "request" }],
   },
 
@@ -76,23 +77,32 @@ export const SCRIPT: Record<string, SceneNode> = {
     speaker: "buyo",
     text: "I am building an EIP-712 transferWithAuthorization. It lets the USDC move without me broadcasting a separate transaction first.",
     action: "buildAuth",
-    choices: [{ label: "Send it to my Ledger Nano", goto: "confirm" }],
+    choices: [{ label: "Send it to my Ledger Stax", goto: "confirm" }],
   },
 
-  // ---- Beat 4: Ledger Nano confirmation (press to approve) ----------------
+  // ---- Beat 4: Ledger Stax review + hold-to-sign --------------------------
   confirm: {
     beat: 4,
     speaker: "ledger",
-    text: "Read the fields on the Ledger Nano, then press the right button to approve. Your key never leaves the device.",
-    action: "prepareScreen",
+    text: "Over to the Ledger Stax. Swipe through the pages to review, then hold to sign. Your key never leaves the device.",
     approval: true,
+    onReject: "cancelled",
     goto: "signed",
   },
   signed: {
     beat: 4,
     speaker: "buyo",
-    text: "Approved on the device. Signature {sigShort}. The private key never left the Ledger.",
+    text: "Held, signed, done. Signature {sigShort}. The private key never left the Stax.",
     choices: [{ label: "Settle on Base", goto: "settle" }],
+  },
+  cancelled: {
+    beat: 4,
+    speaker: "sella",
+    text: "No worries, you rejected it on the device. Nothing was signed and nothing moved. The key stayed put.",
+    choices: [
+      { label: "Actually, let's pay", goto: "confirm" },
+      { label: "Start over", goto: "__restart" },
+    ],
   },
 
   // ---- Beat 5: Settle (simulated) -----------------------------------------
