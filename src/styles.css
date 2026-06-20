@@ -1,0 +1,124 @@
+/* ==========================================================================
+   Agent Pays Agent — Phase 0 style system
+   Mobile-first. Base brand palette. True pixel-art rendering: hard edges only.
+   ========================================================================== */
+
+:root {
+  /* --- Base brand palette ------------------------------------------------ */
+  --base-blue: #0052ff; /* dominant */
+  --white: #ffffff;
+  --near-black: #0a0b0d;
+
+  /* Derived accent kept within the brand (flat tint, no gradients). */
+  --base-blue-dark: #0040c8; /* flat darker blue for pixel depth */
+
+  /* --- Type -------------------------------------------------------------- */
+  --font-pixel: "Press Start 2P", monospace;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas,
+    monospace;
+
+  /* --- Pixel grid -------------------------------------------------------- */
+  /* One "pixel unit" — scale sprites/spacing in whole multiples of this. */
+  --px: 4px;
+
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}
+
+body {
+  background-color: var(--base-blue); /* Base Blue dominates the screen */
+  color: var(--white);
+  font-family: var(--font-mono);
+  /* Crisp text: no anti-alias softening beyond what's needed to read. */
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  /* Disable any inherited smoothing on scaled raster content. */
+  image-rendering: pixelated;
+  overflow-x: hidden;
+}
+
+/* --- Layout: mobile-first, centered single screen ------------------------ */
+.screen {
+  min-height: 100svh; /* small-viewport unit: avoids mobile URL-bar jump */
+  min-height: 100vh; /* fallback */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(20px, 6vw, 48px);
+  /* Respect notches / safe areas on mobile. */
+  padding-top: max(clamp(20px, 6vw, 48px), env(safe-area-inset-top));
+  padding-bottom: max(clamp(20px, 6vw, 48px), env(safe-area-inset-bottom));
+}
+
+.stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: clamp(20px, 5vh, 40px);
+  width: 100%;
+  max-width: 720px;
+}
+
+/* --- The pixel sprite ---------------------------------------------------- */
+/* Rendered tiny on the canvas, scaled up here with hard, blocky pixels. */
+.sprite {
+  width: clamp(112px, 38vw, 224px); /* whole-multiple feel; scales smoothly */
+  height: auto;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges; /* Firefox keyword fallback */
+  /* Flat blocky frame — no soft shadow. */
+  background: var(--near-black);
+  border: var(--px) solid var(--near-black);
+  /* Hard offset block "shadow": a flat dark square, never a blur. */
+  box-shadow: var(--px) var(--px) 0 0 var(--near-black);
+}
+
+/* --- Typography ---------------------------------------------------------- */
+.title {
+  font-family: var(--font-pixel);
+  /* Pixel fonts get unreadable when large on small screens — clamp tightly. */
+  font-size: clamp(18px, 7vw, 40px);
+  line-height: 1.3;
+  letter-spacing: 0.02em;
+  margin: 0;
+  color: var(--white);
+  /* Hard pixel "drop shadow": single flat offset, zero blur. */
+  text-shadow: var(--px) var(--px) 0 var(--near-black);
+}
+
+.subtitle {
+  font-family: var(--font-pixel);
+  font-size: clamp(8px, 2.6vw, 13px);
+  line-height: 1.8;
+  letter-spacing: 0.02em;
+  margin: 0;
+  /* Slightly recessed: near-black on blue reads as a flat secondary line. */
+  color: var(--near-black);
+}
+
+/* --- Desktop / larger screens ------------------------------------------- */
+/* Mobile-first: only adjust rhythm at width, never re-layout from scratch. */
+@media (min-width: 720px) {
+  .stage {
+    gap: 48px;
+  }
+}
+
+/* Honor reduced-motion now so later animated phases inherit the contract. */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation: none !important;
+    transition: none !important;
+  }
+}

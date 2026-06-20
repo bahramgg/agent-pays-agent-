@@ -1,0 +1,20 @@
+{
+  "name": "agent-pays-agent",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Simulated 8-bit pixel-art demo: two agents paying each other via x402, anchored by a Ledger hardware signature.",
+  "type": "module",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "node build.mjs",
+    "start": "node server.js",
+    "dev": "node build.mjs && node server.js",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "esbuild": "^0.24.0",
+    "typescript": "^5.6.0"
+  }
+}

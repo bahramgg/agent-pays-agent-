@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#0052FF" />
+    <title>Agent Pays Agent</title>
+    <meta
+      name="description"
+      content="A simulated 8-bit demo: two agents paying each other via x402, anchored by hardware."
+    />
+
+    <!-- Pixel font for headings/captions; clean mono for longer copy. -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=IBM+Plex+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="screen" role="main">
+      <div class="stage">
+        <!-- Static pixel sprite, drawn at native resolution then scaled up crisply. -->
+        <canvas
+          id="sprite"
+          class="sprite"
+          width="16"
+          height="16"
+          role="img"
+          aria-label="Pixel-art agent robot"
+        ></canvas>
+
+        <h1 class="title">Agent Pays Agent</h1>
+        <p class="subtitle">x402 payments, anchored by hardware</p>
+      </div>
+    </main>
+
+    <script type="module" src="./main.js"></script>
+  </body>
+</html>
