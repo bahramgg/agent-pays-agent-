@@ -7,7 +7,7 @@
     <title>Agent Pays Agent</title>
     <meta
       name="description"
-      content="An interactive pixel-art cartoon: two agents, one x402 payment, signed on a Ledger Stax."
+      content="An interactive pixel-art cartoon: two agents, one x402 payment, signed with clear signing."
     />
 
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -29,17 +29,20 @@
 
       <!-- ============================= TABS ============================= -->
       <nav class="tabs" role="tablist" aria-label="Views">
-        <button class="tab is-active" id="tabDemo" role="tab" aria-selected="true" type="button">
-          DEMO
-        </button>
-        <button class="tab" id="tabHow" role="tab" aria-selected="false" type="button">
-          HOW IT WORKS
-        </button>
+        <button class="tab is-active" id="tabDemo" role="tab" aria-selected="true" type="button">Demo</button>
+        <button class="tab" id="tabHow" role="tab" aria-selected="false" type="button">How it works</button>
+        <button class="tab" id="tabAbout" role="tab" aria-selected="false" type="button">About</button>
+        <button class="tab tab--icon" id="tabHelp" role="tab" aria-selected="false" type="button" aria-label="Help">?</button>
       </nav>
+
+      <!-- ====================== STATUS / STEP LINE ===================== -->
+      <div class="status" id="statusLine" aria-live="polite">
+        <span class="status__step">STEP 1 OF 5</span><span class="status__label">Loading…</span>
+      </div>
 
       <!-- ============================ DEMO VIEW ========================= -->
       <section class="view is-active" id="viewDemo" role="tabpanel" aria-label="Demo">
-        <!-- Scene: free-standing robots on a Base-blue stage -->
+        <!-- PANEL 1: the robot stage -->
         <div class="panel scene-panel">
           <div class="scene" id="scene">
             <div class="actors">
@@ -49,7 +52,6 @@
                   <div class="actor__sprite" id="buyoSprite" role="img" aria-label="Buyo, the buyer agent"></div>
                 </div>
               </figure>
-
               <figure class="actor actor--sella" id="sella">
                 <figcaption class="actor__name">SELLA<span class="actor__role">seller</span></figcaption>
                 <div class="actor__bob">
@@ -61,30 +63,19 @@
           </div>
         </div>
 
-        <!-- The Ledger Stax (vertical), brought forward at payment time -->
-        <div class="panel stax-panel" id="staxPanel">
-          <div class="stax" id="ledger">
-            <div class="stax__body">
-              <span class="stax__side-btn" aria-hidden="true"></span>
-              <div class="stax__screen" id="ledgerScreen"></div>
-              <div class="stax__bar">
-                <span class="stax__mark" id="ledgerMark" aria-hidden="true"></span>
-              </div>
-            </div>
-          </div>
-          <p class="stax__label">LEDGER STAX</p>
-        </div>
-
-        <!-- Dialogue -->
+        <!-- PANEL 2: dialogue + choices -->
         <div class="panel dialogue-panel">
           <section class="dialogue from-center" id="dialogue" aria-live="polite" aria-label="Dialogue">
             <p class="dialogue__name" id="speakerName"></p>
             <p class="dialogue__text" id="dialogueText">…</p>
           </section>
+          <section class="choices" id="choices" aria-label="Your choices"></section>
         </div>
 
-        <!-- Choices -->
-        <section class="choices" id="choices" aria-label="Your choices"></section>
+        <!-- PANEL 3: the clear-signing card -->
+        <div class="panel sign-panel" id="signPanel">
+          <div class="sign-card" id="signCard"></div>
+        </div>
       </section>
 
       <!-- ========================= HOW IT WORKS ======================== -->
@@ -92,52 +83,65 @@
         <div class="panel explain">
           <h2 class="explain__title">What just happened?</h2>
           <p>
-            Buyo and Sella just completed a paid API call using x402, an open payment
-            standard. Here is each step in plain language.
+            Buyo and Sella complete a paid API call using x402, an open payment standard.
+            Here is each step in plain language.
           </p>
           <ol class="explain__steps">
+            <li><strong>Meet.</strong> Buyo needs a forecast. Sella offers her Weather Oracle, priced over x402.</li>
             <li>
-              <strong>Meet.</strong> Buyo needs a forecast. Sella offers her Weather
-              Oracle, priced over x402.
+              <strong>402 Payment Required.</strong> Buyo's first request returns a real HTTP 402
+              with payment terms: pay 0.01 USDC to Sella on Base, with a nonce and an expiry. The 402
+              status code is how x402 asks a client to pay before continuing.
             </li>
             <li>
-              <strong>402 Payment Required.</strong> Buyo's first request returned a real
-              HTTP 402 with payment terms: pay 0.01 USDC to Sella on Base, with a nonce
-              and an expiry. The 402 status code is how x402 asks a client to pay before
-              continuing.
+              <strong>Authorize.</strong> Buyo builds an EIP-3009
+              <code>transferWithAuthorization</code> message. That is EIP-712 typed data: a
+              structured instruction to move 0.01 USDC to Sella, without broadcasting a separate
+              transaction first.
             </li>
             <li>
-              <strong>Authorize.</strong> Buyo built an EIP-3009
-              <code>transferWithAuthorization</code> message. That is EIP-712 typed data:
-              a structured instruction to move 0.01 USDC to Sella, without broadcasting a
-              separate transaction first.
+              <strong>Clear signing.</strong> The card shows exactly what is being signed in plain
+              language: action, amount, recipient, and network. A press and hold approves it, and the
+              private key stays on the device. That is the one option this demo adds on top of x402.
             </li>
-            <li>
-              <strong>Review and sign on hardware.</strong> The message went to a Ledger
-              Stax. The touchscreen showed the amount, recipient, and network across paged
-              review screens, and a press and hold approved it. The private key stayed on
-              the device the whole time. That is the one option this demo adds on top of
-              x402.
-            </li>
-            <li>
-              <strong>Settle on Base.</strong> The signed authorization went to a
-              facilitator that submits to Base. In this demo, settlement is simulated.
-            </li>
-            <li>
-              <strong>Deliver.</strong> With payment settled, Sella returned the forecast.
-              The paid request is complete.
-            </li>
+            <li><strong>Settle on Base.</strong> The signed authorization goes to a facilitator that submits to Base. In this demo, settlement is simulated.</li>
+            <li><strong>Deliver.</strong> With payment settled, Sella returns the forecast. The paid request is complete.</li>
           </ol>
           <p class="explain__friendly">
-            x402 makes agent payments fast and open, and it pairs nicely with Coinbase's
-            onchain tooling. This demo simply adds one option: keep the signing key in
-            hardware.
+            x402 makes agent payments fast and open, and it pairs nicely with Coinbase's onchain
+            tooling. This demo simply adds one option: keep the signing key in hardware.
           </p>
-          <p class="explain__note">
-            The addresses, nonce, signature, and transaction hash are realistic-looking
-            placeholders. The EIP-712 message is constructed for real; the signature is
-            simulated for now and settlement is simulated.
+        </div>
+      </section>
+
+      <!-- ============================ ABOUT ============================ -->
+      <section class="view" id="viewAbout" role="tabpanel" aria-label="About" hidden>
+        <div class="panel explain">
+          <h2 class="explain__title">About</h2>
+          <p>
+            Agent Pays Agent is a small interactive cartoon. Two agents, Buyo and Sella, make a
+            buy and sell that is paid over a real x402 flow and approved with clear signing.
           </p>
+          <p>
+            The HTTP 402 and its x402 terms are real, and the EIP-712
+            <code>transferWithAuthorization</code> message is constructed for real. The signature
+            and the settlement are simulated in this build so it runs anywhere.
+          </p>
+          <p class="explain__note" id="aboutTag"></p>
+        </div>
+      </section>
+
+      <!-- ============================= HELP ============================ -->
+      <section class="view" id="viewHelp" role="tabpanel" aria-label="Help" hidden>
+        <div class="panel explain">
+          <h2 class="explain__title">How to play</h2>
+          <ol class="explain__steps">
+            <li>Watch Buyo and Sella walk in and meet.</li>
+            <li>Read the dialogue and tap a choice to advance.</li>
+            <li>At payment time, check the clear-signing card. It shows exactly what you sign.</li>
+            <li>Press and hold "Hold to sign" to approve, or tap "Reject" to cancel.</li>
+            <li>Follow the status line at the top to see which step you are on.</li>
+          </ol>
         </div>
       </section>
 

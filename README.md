@@ -1,14 +1,17 @@
 # Agent Pays Agent
 
-An interactive pixel-art cartoon, in the Base palette, where two agents make a
-deal: **Buyo** (the buyer) needs a forecast, **Sella** (the seller) runs a
-**Weather Oracle**, and Buyo pays for one call over a real
-[x402](https://www.x402.org/) flow. You advance the story by picking on-screen
-choices in dialogue bubbles, and you approve the payment by reviewing it page by
-page and holding to sign on a recognizable pixel **Ledger Stax**.
+An interactive pixel-art cartoon where two agents make a deal: **Buyo** (the
+buyer) needs a forecast, **Sella** (the seller) runs a **Weather Oracle**, and
+Buyo pays for one call over a real [x402](https://www.x402.org/) flow. You
+advance the story by picking on-screen choices, and you approve the payment on a
+clean **clear-signing card** that shows exactly what is being signed, then press
+and hold to sign.
 
-Buyo and Sella **walk in from opposite edges** with a stepped 8-bit walk cycle
-and meet in the middle before the dialogue begins.
+The UI is a tidy retro dashboard: a light lavender page, white double-bordered
+panels with a hard card lift, monospace type, a tab nav, and a status step line.
+The two characters are cute, recolored pixel **robots** (Buyo azure, Sella teal)
+that **walk in from opposite edges** and meet in the middle before the dialogue
+begins.
 
 This is a friendly complement to x402 and Coinbase's onchain tooling. It shows
 how agent-to-agent payments can feel when the signing key lives in hardware.
@@ -28,10 +31,11 @@ Nothing here is "versus" anything.
 1. **Meet** Buyo and Sella.
 2. **402 Payment Required** comes back from the server with real x402 terms.
 3. **Prepare** the EIP-712 `transferWithAuthorization` authorization.
-4. **Ledger Stax review and hold-to-sign:** the white touchscreen shows the
-   payment across paged review screens ("1 of 3" to "3 of 3"), and you press and
-   hold to sign (or tap once under reduced motion). Reject cancels the payment.
-   A signature appears as a short hash. The key never leaves the device.
+4. **Clear-signing card and hold-to-sign:** a clean card lists exactly what is
+   being signed (action, amount, recipient, network, nonce, valid-until) pulled
+   from the real EIP-712 message. You press and hold to sign (or tap once under
+   reduced motion). Reject cancels the payment. The signature appears as a short
+   hash. The key never leaves the device.
 5. **Settle** on Base (simulated), showing a transaction hash.
 6. **Deliver** the forecast to Buyo.
 7. **Wrap** up, with a "What just happened?" explainer.
@@ -65,14 +69,14 @@ Ledger Ethereum Signer Kit and the Speculos emulator without touching the story.
 
 ```
 src/
-  index.html   # stage (Buyo, Sella, Ledger Stax), dialogue, choices, explainer
-  styles.css   # Base palette + pixel-art style system + animations
-  sprites.ts   # pixel-art sprites: robots (stand + walk frames), Ledger mark
+  index.html   # 3-panel layout (stage, dialogue+choices, clear-signing card)
+  styles.css   # lavender retro dashboard + pixel-art style system + animations
+  sprites.ts   # pixel-art robots (stand + walk frames), recolored per-robot
   actors.ts    # SpriteActor: drives an actor's stand / walk-cycle frames
-  scene.ts     # the scene script: 7 beats of dialogue + choices (data)
+  scene.ts     # the scene script: dialogue + choices + 5-step status (data)
   payment.ts   # x402 client: fetch 402, build EIP-712, sign, settle
-  ledger.ts    # Ledger Stax paged review + hold-to-sign component
-  engine.ts    # walk-in entrance, scene script, DOM, Stax review wiring
+  clearsign.ts # clear-signing card: readable fields + hold-to-sign
+  engine.ts    # walk-in entrance, scene script, tabs, status, DOM wiring
   main.ts      # entry: start the engine
 server.js      # static server + x402 API (/api/config, /api/weather, /api/sign)
 build.mjs      # esbuild: bundle + copy static assets -> dist/
@@ -97,24 +101,26 @@ runs `npm install && npm run build`, then `npm start`, and injects `PORT`.
 
 ## What to check
 
-- **Retro UI:** a clean Base-blue dashboard with double-bordered panels, a hard
-  card lift, monospace headings/labels/buttons, a tab nav (DEMO / HOW IT WORKS),
-  and chunky raised buttons with a pressed state. Base Blue dominates.
-- **Robots:** Buyo and Sella are limbed pixel robots (head, body, arms, legs),
-  standing free on a Base-blue stage with a ground line, not boxed in a frame.
+- **Retro UI:** a light lavender page with white double-bordered panels, a hard
+  card lift, monospace headings/labels/buttons, a tab nav (Demo / How it works /
+  About / ?), and chunky raised buttons with a pressed state. Base Blue is the
+  brand accent (active tab, primary buttons, the stage).
+- **Three stacked panels:** the robot stage on top, dialogue plus choices in the
+  middle, and the clear-signing card at the bottom.
+- **Robots:** Buyo (azure) and Sella (teal) are cute limbed pixel robots (head,
+  body, arms, legs), standing free on a Base-blue stage with a ground line.
 - **Entrance:** they walk in from the left and right edges with a stepped walk
-  cycle (arms and legs animate) and meet in the middle before the dialogue
-  starts. Reduced motion makes them appear in place.
-- **Ledger Stax:** an accurate vertical (portrait) device: charcoal rounded
-  body, right-side button, large white touchscreen with black text, silver
-  bottom bar with the Ledger mark. It is brought forward at payment time.
-- **Flow:** the seven beats play; the 402 is real (watch the network tab); the
-  Stax shows the paged review (1 of 3 to 3 of 3); press and hold to sign
-  produces a short signature hash; Reject leads to a friendly cancelled beat.
-- **Explainer and honesty:** the HOW IT WORKS tab reads clearly in a non-pixel
-  font; the wrap line and the honesty tag are visible and currently say the
-  signature is simulated; tone stays complementary to x402 and Coinbase; no em
-  dashes in on-page copy.
+  cycle (arms and legs animate) and meet in the middle. Reduced motion makes
+  them appear in place.
+- **Status line:** an always-visible "STEP X OF 5" indicator updates through
+  meet, request, 402, review and sign, settle, deliver.
+- **Clear-signing card:** lists exactly what is being signed (action, amount,
+  recipient, network, nonce, valid-until) from the real EIP-712 message; press
+  and hold to sign produces a short signature hash; Reject leads to a friendly
+  cancelled beat.
+- **Flow and honesty:** the 402 is real (watch the network tab); the How it works
+  and About tabs read clearly; the wrap line and honesty tag say the signature is
+  simulated; tone stays complementary to x402 and Coinbase; no em dashes.
 
 ## Brand palette
 
