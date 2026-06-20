@@ -29,13 +29,6 @@
         </p>
       </header>
 
-      <!-- ============================= TABS ============================= -->
-      <nav class="tabs" role="tablist" aria-label="Information">
-        <button class="tab is-active" id="tabHow" role="tab" aria-selected="true" type="button">How it works</button>
-        <button class="tab" id="tabAbout" role="tab" aria-selected="false" type="button">About</button>
-        <button class="tab tab--icon" id="tabHelp" role="tab" aria-selected="false" type="button" aria-label="Help">?</button>
-      </nav>
-
       <!-- ====================== INTERACTIVE SCENE ====================== -->
       <!-- PANEL 1: the robot stage -->
       <div class="panel scene-panel">
@@ -70,95 +63,97 @@
       <!-- PANEL 3: the Ledger Signer card -->
       <div class="panel signer-panel" id="signPanel">
         <div class="signer__header">
-          <span class="signer__brand"><span class="signer__mark" aria-hidden="true"></span>LEDGER</span>
-          <span class="signer__kind">Signer</span>
+          <span class="signer__brand">Ledger Signer</span>
         </div>
         <div class="sign-card" id="signCard"></div>
       </div>
 
-      <!-- ===================== WRAP & HONESTY ========================== -->
-      <footer class="panel outro">
+      <!-- ===================== INFO ACCORDION ========================== -->
+      <section class="panel accordion" aria-label="More information">
+        <details class="acc__item" id="accHow">
+          <summary class="acc__head">How it works</summary>
+          <div class="acc__body">
+            <p>
+              Buyo and Sella complete a paid API call using x402, and the payment is approved
+              with Ledger clear signing. Here is each step in plain language.
+            </p>
+            <ol class="explain__steps">
+              <li><strong>Meet.</strong> Buyo needs a forecast. Sella offers her Weather Oracle, priced over x402.</li>
+              <li>
+                <strong>402 Payment Required.</strong> Buyo's first request returns a real HTTP 402
+                with payment terms: pay 0.01 USDC to Sella on Base, with a nonce and an expiry. The
+                402 status code is how x402 asks a client to pay before continuing.
+              </li>
+              <li>
+                <strong>Authorize.</strong> Buyo builds an EIP-3009
+                <code>transferWithAuthorization</code> message. That is EIP-712 typed data: a
+                structured instruction to move 0.01 USDC to Sella, without broadcasting a separate
+                transaction first.
+              </li>
+              <li>
+                <strong>Clear signing on Ledger.</strong> The authorization goes to the Ledger
+                signer. The plan is to drive a Ledger device with the Ledger Device Management Kit
+                and the Ledger Ethereum Signer Kit, so the device shows exactly what is being signed
+                and a press and hold approves it, with the private key staying in hardware. In this
+                build the signature is simulated, so it runs anywhere; the real signing on the
+                Speculos emulator arrives in a later phase.
+              </li>
+              <li><strong>Settle on Base.</strong> The signed authorization goes to a facilitator that submits to Base. In this demo, settlement is simulated.</li>
+              <li><strong>Deliver.</strong> With payment settled, Sella returns the forecast. The paid request is complete.</li>
+            </ol>
+            <p class="explain__friendly">
+              x402 makes agent payments fast and open, and it pairs nicely with Coinbase's onchain
+              tooling. This demo builds on x402 and adds one option: keep the signing key in hardware.
+            </p>
+          </div>
+        </details>
+
+        <details class="acc__item">
+          <summary class="acc__head">About</summary>
+          <div class="acc__body">
+            <p>
+              Agent Pays Agent is a small demo of the Ledger Agent Stack idea: an AI agent can
+              propose a payment, but a Ledger device has the final say and signs it, so the signing
+              key stays in hardware.
+            </p>
+            <p>
+              Buyo (the buyer agent) and Sella (the seller agent) make a buy and sell paid over a real
+              x402 flow. When it is time to pay, the agent builds an EIP-712
+              <code>transferWithAuthorization</code> (USDC on Base) and hands it to the Ledger signer
+              for clear signing, where you see exactly what you approve.
+            </p>
+            <p>
+              It is designed around Ledger's official tools, the Ledger Device Management Kit and the
+              Ledger Ethereum Signer Kit, which sign on a Ledger device run through the Speculos
+              emulator. In this build that signature is simulated so the demo runs anywhere; the real
+              Speculos signing arrives in a later phase.
+            </p>
+            <p class="explain__friendly">
+              x402 makes agent payments fast and open, and it pairs nicely with Coinbase's onchain
+              tooling. This demo builds on x402; it is not a replacement for it.
+            </p>
+          </div>
+        </details>
+
+        <details class="acc__item">
+          <summary class="acc__head">?</summary>
+          <div class="acc__body">
+            <p>How to play:</p>
+            <ol class="explain__steps">
+              <li>Watch Buyo and Sella walk in and meet.</li>
+              <li>Read the dialogue and tap a choice to advance.</li>
+              <li>At payment time, check the Ledger signer card. It shows exactly what you sign.</li>
+              <li>Press and hold "Hold to sign" to approve, or tap "Reject" to cancel.</li>
+            </ol>
+          </div>
+        </details>
+      </section>
+
+      <!-- ===================== HONESTY (very bottom) =================== -->
+      <footer class="outro">
         <p class="verdict" id="verdict"></p>
         <p class="sim-tag" id="simTag"></p>
       </footer>
-
-      <!-- ===================== INFO (bottom of page) =================== -->
-      <section class="info" aria-label="More information">
-        <!-- How it works (default, lives at the end of the page) -->
-        <div class="panel explain view is-active" id="viewHow" role="tabpanel" aria-label="How it works">
-          <h2 class="explain__title">How it works</h2>
-          <p>
-            Buyo and Sella complete a paid API call using x402, and the payment is approved
-            with Ledger clear signing. Here is each step in plain language.
-          </p>
-          <ol class="explain__steps">
-            <li><strong>Meet.</strong> Buyo needs a forecast. Sella offers her Weather Oracle, priced over x402.</li>
-            <li>
-              <strong>402 Payment Required.</strong> Buyo's first request returns a real HTTP 402
-              with payment terms: pay 0.01 USDC to Sella on Base, with a nonce and an expiry. The 402
-              status code is how x402 asks a client to pay before continuing.
-            </li>
-            <li>
-              <strong>Authorize.</strong> Buyo builds an EIP-3009
-              <code>transferWithAuthorization</code> message. That is EIP-712 typed data: a
-              structured instruction to move 0.01 USDC to Sella, without broadcasting a separate
-              transaction first.
-            </li>
-            <li>
-              <strong>Clear signing on Ledger.</strong> The authorization goes to the Ledger signer.
-              The plan is to drive a Ledger device with the Ledger Device Management Kit and the
-              Ledger Ethereum Signer Kit, so the device shows exactly what is being signed and a
-              press and hold approves it, with the private key staying in hardware. In this build the
-              signature is simulated, so it runs anywhere; the real signing on the Speculos emulator
-              arrives in a later phase.
-            </li>
-            <li><strong>Settle on Base.</strong> The signed authorization goes to a facilitator that submits to Base. In this demo, settlement is simulated.</li>
-            <li><strong>Deliver.</strong> With payment settled, Sella returns the forecast. The paid request is complete.</li>
-          </ol>
-          <p class="explain__friendly">
-            x402 makes agent payments fast and open, and it pairs nicely with Coinbase's onchain
-            tooling. This demo builds on x402 and adds one option: keep the signing key in hardware.
-          </p>
-        </div>
-
-        <!-- About -->
-        <div class="panel explain view" id="viewAbout" role="tabpanel" aria-label="About" hidden>
-          <h2 class="explain__title">About</h2>
-          <p>
-            Agent Pays Agent is a small demo of the Ledger Agent Stack idea: an AI agent can propose
-            a payment, but a Ledger device has the final say and signs it, so the signing key stays
-            in hardware.
-          </p>
-          <p>
-            Buyo (the buyer agent) and Sella (the seller agent) make a buy and sell paid over a real
-            x402 flow. When it is time to pay, the agent builds an EIP-712
-            <code>transferWithAuthorization</code> (USDC on Base) and hands it to the Ledger signer
-            for clear signing, where you see exactly what you approve.
-          </p>
-          <p>
-            It is designed around Ledger's official tools, the Ledger Device Management Kit and the
-            Ledger Ethereum Signer Kit, which sign on a Ledger device run through the Speculos
-            emulator. In this build that signature is simulated so the demo runs anywhere; the real
-            Speculos signing arrives in a later phase.
-          </p>
-          <p class="explain__friendly">
-            x402 makes agent payments fast and open, and it pairs nicely with Coinbase's onchain
-            tooling. This demo builds on x402; it is not a replacement for it.
-          </p>
-          <p class="explain__note" id="aboutTag"></p>
-        </div>
-
-        <!-- Help -->
-        <div class="panel explain view" id="viewHelp" role="tabpanel" aria-label="Help" hidden>
-          <h2 class="explain__title">How to play</h2>
-          <ol class="explain__steps">
-            <li>Watch Buyo and Sella walk in and meet.</li>
-            <li>Read the dialogue and tap a choice to advance.</li>
-            <li>At payment time, check the Ledger signer card. It shows exactly what you sign.</li>
-            <li>Press and hold "Hold to sign" to approve, or tap "Reject" to cancel.</li>
-          </ol>
-        </div>
-      </section>
     </div>
 
     <script type="module" src="./main.js"></script>

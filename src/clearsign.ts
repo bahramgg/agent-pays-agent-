@@ -50,7 +50,6 @@ export function setCardState(state: "idle" | "signed" | "cancelled", sigShort?: 
   if (state === "idle") {
     cardEl.innerHTML = `
       <div class="cs cs--idle">
-        <span class="cs__badge">CLEAR SIGNING</span>
         <p class="cs__idle">No payment to review yet. Play through the demo and the
         authorization will appear here for you to check and sign.</p>
       </div>`;
@@ -131,10 +130,7 @@ export function runClearSign(data: SignData): Promise<SignOutcome> {
 
     cardEl.innerHTML = `
       <div class="cs">
-        <div class="cs__head">
-          <span class="cs__badge">CLEAR SIGNING</span>
-          <span class="cs__sub">Review exactly what you sign</span>
-        </div>
+        <p class="cs__lead">Review exactly what you sign.</p>
         ${fieldsHtml(data)}
         <div class="cs__actions">
           <button class="cs__reject" data-act="reject">Reject</button>
