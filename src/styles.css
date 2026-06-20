@@ -14,12 +14,13 @@
   --base-blue-deep: #00204d;
   --base-blue-light: #3d7bff;
 
-  /* lavender page + soft surfaces */
-  --lavender: #e8e6f4;
-  --lavender-line: #cfcae6;
+  /* dark page + soft surfaces */
+  --page: #0a0b0d;
+  --page-dot: #17181f;
+  --lavender-line: #cfcae6; /* hairlines inside white panels */
   --panel: #ffffff;
   --ink-soft: #4a4f57;
-  --shadow: #1c1830;
+  --shadow: #0a4ad8; /* blue card lift, reads on the dark page */
 
   /* accents */
   --gold: #f5b301;
@@ -43,8 +44,8 @@ body {
   padding: 0;
 }
 body {
-  background-color: var(--lavender);
-  background-image: radial-gradient(var(--lavender-line) 1.5px, transparent 1.5px);
+  background-color: var(--page);
+  background-image: radial-gradient(var(--page-dot) 1.5px, transparent 1.5px);
   background-size: 20px 20px;
   color: var(--near-black);
   font-family: var(--font-text);
@@ -144,41 +145,17 @@ body {
   outline-offset: 2px;
 }
 
-/* --- Status / step line -------------------------------------------------- */
-.status {
+/* --- Info section (bottom of page) + its tab views ----------------------- */
+.info {
   display: flex;
-  align-items: center;
-  gap: clamp(8px, 2vw, 12px);
-  background: var(--white);
-  border: 3px solid var(--near-black);
-  box-shadow: 4px 4px 0 0 var(--shadow);
-  padding: clamp(8px, 2.2vw, 11px) clamp(10px, 3vw, 14px);
-  font-family: var(--font-mono);
-}
-.status__step {
-  flex: 0 0 auto;
-  font-weight: 700;
-  font-size: clamp(8px, 2vw, 11px);
-  letter-spacing: 0.04em;
-  color: var(--white);
-  background: var(--base-blue);
-  padding: 4px 7px;
-}
-.status__label {
-  font-size: clamp(10px, 2.5vw, 13px);
-  font-weight: 700;
-  color: var(--near-black);
-  line-height: 1.3;
-}
-
-/* --- Views --------------------------------------------------------------- */
-.view {
-  display: none;
   flex-direction: column;
   gap: clamp(12px, 2.6vh, 18px);
 }
+.view {
+  display: none;
+}
 .view.is-active {
-  display: flex;
+  display: block;
 }
 
 /* ==========================================================================
@@ -349,13 +326,57 @@ body {
 }
 
 /* ==========================================================================
-   PANEL 3: clear-signing card
+   PANEL 3: Ledger Signer card
    ========================================================================== */
-.sign-panel {
+.signer-panel {
   transition: box-shadow 120ms steps(2, end);
 }
-.sign-panel.is-foreground {
+.signer-panel.is-foreground {
   box-shadow: 6px 6px 0 0 var(--shadow), 0 0 0 3px var(--base-blue);
+}
+/* clean Ledger-style header so it reads as the signing surface */
+.signer__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  background: var(--near-black);
+  border: 2px solid var(--near-black);
+  padding: clamp(8px, 2.4vw, 11px) clamp(10px, 3vw, 14px);
+  margin-bottom: clamp(12px, 3vw, 16px);
+}
+.signer__brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: clamp(12px, 3vw, 15px);
+  letter-spacing: 0.22em;
+  color: var(--white);
+}
+/* a small bracket mark evoking the Ledger logo (two vertical brackets) */
+.signer__mark {
+  position: relative;
+  width: 13px;
+  height: 13px;
+  border: 2px solid var(--white);
+}
+.signer__mark::before {
+  content: "";
+  position: absolute;
+  top: -2px;
+  bottom: -2px;
+  left: 3px;
+  right: 3px;
+  background: var(--near-black);
+}
+.signer__kind {
+  font-family: var(--font-mono);
+  font-size: clamp(9px, 2.3vw, 11px);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--base-blue-light);
 }
 .cs {
   display: flex;
@@ -633,7 +654,7 @@ body {
   }
   .actor,
   .choice,
-  .sign-panel,
+  .signer-panel,
   .cs__fill {
     transition: none !important;
   }

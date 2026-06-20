@@ -20,7 +20,7 @@ import {
   type Signed,
   type TypedData,
 } from "./payment.js";
-import { SCRIPT, START_NODE, TOTAL_STEPS, type ActionKey, type SceneNode, type Speaker } from "./scene.js";
+import { SCRIPT, START_NODE, type ActionKey, type SceneNode, type Speaker } from "./scene.js";
 
 const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
@@ -42,7 +42,6 @@ function el<T extends HTMLElement = HTMLElement>(id: string): T {
 }
 
 let sceneEl: HTMLElement;
-let statusLine: HTMLElement;
 let dialogueBox: HTMLElement;
 let speakerName: HTMLElement;
 let dialogueText: HTMLElement;
@@ -64,26 +63,25 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const cap = (s: string) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
 const interpolate = (text: string) => text.replace(/\{(\w+)\}/g, (_, k) => ctx.values[k] ?? "");
 
-// ---- tabs -----------------------------------------------------------------
+// ---- tabs (the bottom info sections) --------------------------------------
 const TABS: Record<string, [string, string]> = {
-  demo: ["tabDemo", "viewDemo"],
   how: ["tabHow", "viewHow"],
   about: ["tabAbout", "viewAbout"],
   help: ["tabHelp", "viewHelp"],
 };
-function setTab(name: string): void {
+function setTab(name: string, scroll = false): void {
+  let target: HTMLElement | null = null;
   for (const [key, [tab, view]] of Object.entries(TABS)) {
     const on = key === name;
     el(tab).classList.toggle("is-active", on);
     el(tab).setAttribute("aria-selected", String(on));
     el(view).classList.toggle("is-active", on);
     el(view).toggleAttribute("hidden", !on);
+    if (on) target = el(view);
   }
-}
-
-// ---- status line ----------------------------------------------------------
-function setStatus(step: number, label: string): void {
-  statusLine.innerHTML = `<span class="status__step">STEP ${step} OF ${TOTAL_STEPS}</span><span class="status__label">${label}</span>`;
+  if (scroll && target) {
+    target.scrollIntoView({ behavior: reducedMotion ? "auto" : "smooth", block: "start" });
+  }
 }
 
 // ---- actions (the x402 work) ---------------------------------------------
@@ -222,7 +220,7 @@ async function goTo(id: string): Promise<void> {
   if (busy) return;
 
   if (id === "__explain") {
-    setTab("how");
+    setTab("how", true);
     return;
   }
   if (id === "__restart") {
@@ -234,7 +232,6 @@ async function goTo(id: string): Promise<void> {
   if (!node) throw new Error(`Unknown node: ${id}`);
 
   busy = true;
-  setStatus(node.step, node.status);
   renderDialogue(node);
 
   if (node.action) {
@@ -315,7 +312,6 @@ function resetState(): void {
 async function restart(): Promise<void> {
   busy = true;
   resetState();
-  setTab("demo");
   await playEntrance();
   busy = false;
   await goTo(START_NODE);
@@ -340,7 +336,6 @@ function applyHonestyCopy(config: Config): void {
 // ---- bootstrap ------------------------------------------------------------
 export async function startEngine(): Promise<void> {
   sceneEl = el("scene");
-  statusLine = el("statusLine");
   dialogueBox = el("dialogue");
   speakerName = el("speakerName");
   dialogueText = el("dialogueText");
@@ -356,8 +351,9 @@ export async function startEngine(): Promise<void> {
 
   for (const name of Object.keys(TABS)) {
     const [tab] = TABS[name];
-    el<HTMLButtonElement>(tab).addEventListener("click", () => setTab(name));
+    el<HTMLButtonElement>(tab).addEventListener("click", () => setTab(name, true));
   }
+  setTab("how");
 
   await playEntrance();
 
