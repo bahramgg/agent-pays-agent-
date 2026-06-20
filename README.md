@@ -1,17 +1,19 @@
 # Agent Pays Agent
 
+The agent pays. The Ledger device signs. Built on x402 and the Ledger Agent
+Stack.
+
 An interactive pixel-art cartoon where two agents make a deal: **Buyo** (the
 buyer) needs a forecast, **Sella** (the seller) runs a **Weather Oracle**, and
 Buyo pays for one call over a real [x402](https://www.x402.org/) flow. You
 advance the story by picking on-screen choices, and you approve the payment on a
-clean **clear-signing card** that shows exactly what is being signed, then press
-and hold to sign.
+branded **Ledger Signer** card that shows exactly what is being signed, then
+press and hold to sign.
 
-The UI is a tidy retro dashboard: a light lavender page, white double-bordered
-panels with a hard card lift, monospace type, a tab nav, and a status step line.
-The two characters are cute, recolored pixel **robots** (Buyo azure, Sella teal)
-that **walk in from opposite edges** and meet in the middle before the dialogue
-begins.
+The UI is a tidy retro dashboard on a near-black page: white double-bordered
+panels with a hard Base-blue card lift, monospace type, and a tab nav (How it
+works / About / ?). The two characters are cute pixel **robots** (Buyo azure,
+Sella teal) that **walk in from opposite edges** and meet before the dialogue.
 
 This is a friendly complement to x402 and Coinbase's onchain tooling. It shows
 how agent-to-agent payments can feel when the signing key lives in hardware.
@@ -101,26 +103,26 @@ runs `npm install && npm run build`, then `npm start`, and injects `PORT`.
 
 ## What to check
 
-- **Retro UI:** a light lavender page with white double-bordered panels, a hard
-  card lift, monospace headings/labels/buttons, a tab nav (Demo / How it works /
-  About / ?), and chunky raised buttons with a pressed state. Base Blue is the
-  brand accent (active tab, primary buttons, the stage).
-- **Three stacked panels:** the robot stage on top, dialogue plus choices in the
-  middle, and the clear-signing card at the bottom.
-- **Robots:** Buyo (azure) and Sella (teal) are cute limbed pixel robots (head,
-  body, arms, legs), standing free on a Base-blue stage with a ground line.
-- **Entrance:** they walk in from the left and right edges with a stepped walk
-  cycle (arms and legs animate) and meet in the middle. Reduced motion makes
-  them appear in place.
-- **Status line:** an always-visible "STEP X OF 5" indicator updates through
-  meet, request, 402, review and sign, settle, deliver.
-- **Clear-signing card:** lists exactly what is being signed (action, amount,
-  recipient, network, nonce, valid-until) from the real EIP-712 message; press
-  and hold to sign produces a short signature hash; Reject leads to a friendly
-  cancelled beat.
-- **Flow and honesty:** the 402 is real (watch the network tab); the How it works
-  and About tabs read clearly; the wrap line and honesty tag say the signature is
-  simulated; tone stays complementary to x402 and Coinbase; no em dashes.
+- **Retro UI on a near-black page:** white double-bordered panels with a hard
+  Base-blue card lift, monospace headings/labels/buttons, a tab nav (How it works
+  / About / ?), chunky raised buttons. There is no Demo tab and no step box; the
+  scene is always shown.
+- **Title and subtitle:** "AGENT PAYS AGENT" with "The agent pays. The Ledger
+  device signs. Built on x402 + the Ledger Agent Stack."
+- **Robots:** Buyo (azure) and Sella (teal), cute limbed pixel robots that walk
+  in from the edges and meet on a Base-blue stage. Reduced motion appears in place.
+- **Ledger Signer card:** a branded signing surface with a LEDGER header that
+  lists exactly what is being signed (action, amount, recipient, network) from
+  the real EIP-712 message; press and hold to sign produces a short signature
+  hash; Reject leads to a friendly cancelled beat.
+- **Ledger-forward copy:** the About and How it works sections explain the Ledger
+  Agent Stack idea (the agent proposes, the Ledger device signs) and name the
+  Ledger Device Management Kit and Ledger Ethereum Signer Kit. How it works lives
+  at the bottom of the page.
+- **Honesty:** the 402 is real; the EIP-712 message is real; the signature is
+  simulated in this build and the subtle phase-aware note says so (it switches to
+  the real-Ledger wording when `USE_REAL_SIGNER=true`). Tone stays complementary
+  to x402 and Coinbase. No em dashes.
 
 ## Brand palette
 

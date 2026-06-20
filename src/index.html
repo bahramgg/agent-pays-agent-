@@ -3,11 +3,11 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <meta name="theme-color" content="#0052FF" />
+    <meta name="theme-color" content="#0A0B0D" />
     <title>Agent Pays Agent</title>
     <meta
       name="description"
-      content="An interactive pixel-art cartoon: two agents, one x402 payment, signed with clear signing."
+      content="An interactive demo: an agent pays over x402, and a Ledger device signs."
     />
 
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -24,67 +24,72 @@
       <!-- ============================ HEADER ============================ -->
       <header class="panel masthead">
         <h1 class="title">AGENT PAYS AGENT</h1>
-        <p class="subtitle">Two agents, one x402 payment, signed on hardware.</p>
+        <p class="subtitle">
+          The agent pays. The Ledger device signs. Built on x402 + the Ledger Agent Stack.
+        </p>
       </header>
 
       <!-- ============================= TABS ============================= -->
-      <nav class="tabs" role="tablist" aria-label="Views">
-        <button class="tab is-active" id="tabDemo" role="tab" aria-selected="true" type="button">Demo</button>
-        <button class="tab" id="tabHow" role="tab" aria-selected="false" type="button">How it works</button>
+      <nav class="tabs" role="tablist" aria-label="Information">
+        <button class="tab is-active" id="tabHow" role="tab" aria-selected="true" type="button">How it works</button>
         <button class="tab" id="tabAbout" role="tab" aria-selected="false" type="button">About</button>
         <button class="tab tab--icon" id="tabHelp" role="tab" aria-selected="false" type="button" aria-label="Help">?</button>
       </nav>
 
-      <!-- ====================== STATUS / STEP LINE ===================== -->
-      <div class="status" id="statusLine" aria-live="polite">
-        <span class="status__step">STEP 1 OF 5</span><span class="status__label">Loading…</span>
+      <!-- ====================== INTERACTIVE SCENE ====================== -->
+      <!-- PANEL 1: the robot stage -->
+      <div class="panel scene-panel">
+        <div class="scene" id="scene">
+          <div class="actors">
+            <figure class="actor actor--buyo" id="buyo">
+              <figcaption class="actor__name">BUYO<span class="actor__role">buyer</span></figcaption>
+              <div class="actor__bob">
+                <div class="actor__sprite" id="buyoSprite" role="img" aria-label="Buyo, the buyer agent"></div>
+              </div>
+            </figure>
+            <figure class="actor actor--sella" id="sella">
+              <figcaption class="actor__name">SELLA<span class="actor__role">seller</span></figcaption>
+              <div class="actor__bob">
+                <div class="actor__sprite" id="sellaSprite" role="img" aria-label="Sella, the seller agent"></div>
+              </div>
+            </figure>
+          </div>
+          <div class="ground" aria-hidden="true"></div>
+        </div>
       </div>
 
-      <!-- ============================ DEMO VIEW ========================= -->
-      <section class="view is-active" id="viewDemo" role="tabpanel" aria-label="Demo">
-        <!-- PANEL 1: the robot stage -->
-        <div class="panel scene-panel">
-          <div class="scene" id="scene">
-            <div class="actors">
-              <figure class="actor actor--buyo" id="buyo">
-                <figcaption class="actor__name">BUYO<span class="actor__role">buyer</span></figcaption>
-                <div class="actor__bob">
-                  <div class="actor__sprite" id="buyoSprite" role="img" aria-label="Buyo, the buyer agent"></div>
-                </div>
-              </figure>
-              <figure class="actor actor--sella" id="sella">
-                <figcaption class="actor__name">SELLA<span class="actor__role">seller</span></figcaption>
-                <div class="actor__bob">
-                  <div class="actor__sprite" id="sellaSprite" role="img" aria-label="Sella, the seller agent"></div>
-                </div>
-              </figure>
-            </div>
-            <div class="ground" aria-hidden="true"></div>
-          </div>
-        </div>
+      <!-- PANEL 2: dialogue + choices -->
+      <div class="panel dialogue-panel">
+        <section class="dialogue from-center" id="dialogue" aria-live="polite" aria-label="Dialogue">
+          <p class="dialogue__name" id="speakerName"></p>
+          <p class="dialogue__text" id="dialogueText">…</p>
+        </section>
+        <section class="choices" id="choices" aria-label="Your choices"></section>
+      </div>
 
-        <!-- PANEL 2: dialogue + choices -->
-        <div class="panel dialogue-panel">
-          <section class="dialogue from-center" id="dialogue" aria-live="polite" aria-label="Dialogue">
-            <p class="dialogue__name" id="speakerName"></p>
-            <p class="dialogue__text" id="dialogueText">…</p>
-          </section>
-          <section class="choices" id="choices" aria-label="Your choices"></section>
+      <!-- PANEL 3: the Ledger Signer card -->
+      <div class="panel signer-panel" id="signPanel">
+        <div class="signer__header">
+          <span class="signer__brand"><span class="signer__mark" aria-hidden="true"></span>LEDGER</span>
+          <span class="signer__kind">Signer</span>
         </div>
+        <div class="sign-card" id="signCard"></div>
+      </div>
 
-        <!-- PANEL 3: the clear-signing card -->
-        <div class="panel sign-panel" id="signPanel">
-          <div class="sign-card" id="signCard"></div>
-        </div>
-      </section>
+      <!-- ===================== WRAP & HONESTY ========================== -->
+      <footer class="panel outro">
+        <p class="verdict" id="verdict"></p>
+        <p class="sim-tag" id="simTag"></p>
+      </footer>
 
-      <!-- ========================= HOW IT WORKS ======================== -->
-      <section class="view" id="viewHow" role="tabpanel" aria-label="How it works" hidden>
-        <div class="panel explain">
-          <h2 class="explain__title">What just happened?</h2>
+      <!-- ===================== INFO (bottom of page) =================== -->
+      <section class="info" aria-label="More information">
+        <!-- How it works (default, lives at the end of the page) -->
+        <div class="panel explain view is-active" id="viewHow" role="tabpanel" aria-label="How it works">
+          <h2 class="explain__title">How it works</h2>
           <p>
-            Buyo and Sella complete a paid API call using x402, an open payment standard.
-            Here is each step in plain language.
+            Buyo and Sella complete a paid API call using x402, and the payment is approved
+            with Ledger clear signing. Here is each step in plain language.
           </p>
           <ol class="explain__steps">
             <li><strong>Meet.</strong> Buyo needs a forecast. Sella offers her Weather Oracle, priced over x402.</li>
@@ -100,56 +105,60 @@
               transaction first.
             </li>
             <li>
-              <strong>Clear signing.</strong> The card shows exactly what is being signed in plain
-              language: action, amount, recipient, and network. A press and hold approves it, and the
-              private key stays on the device. That is the one option this demo adds on top of x402.
+              <strong>Clear signing on Ledger.</strong> The authorization goes to the Ledger signer.
+              The plan is to drive a Ledger device with the Ledger Device Management Kit and the
+              Ledger Ethereum Signer Kit, so the device shows exactly what is being signed and a
+              press and hold approves it, with the private key staying in hardware. In this build the
+              signature is simulated, so it runs anywhere; the real signing on the Speculos emulator
+              arrives in a later phase.
             </li>
             <li><strong>Settle on Base.</strong> The signed authorization goes to a facilitator that submits to Base. In this demo, settlement is simulated.</li>
             <li><strong>Deliver.</strong> With payment settled, Sella returns the forecast. The paid request is complete.</li>
           </ol>
           <p class="explain__friendly">
             x402 makes agent payments fast and open, and it pairs nicely with Coinbase's onchain
-            tooling. This demo simply adds one option: keep the signing key in hardware.
+            tooling. This demo builds on x402 and adds one option: keep the signing key in hardware.
           </p>
         </div>
-      </section>
 
-      <!-- ============================ ABOUT ============================ -->
-      <section class="view" id="viewAbout" role="tabpanel" aria-label="About" hidden>
-        <div class="panel explain">
+        <!-- About -->
+        <div class="panel explain view" id="viewAbout" role="tabpanel" aria-label="About" hidden>
           <h2 class="explain__title">About</h2>
           <p>
-            Agent Pays Agent is a small interactive cartoon. Two agents, Buyo and Sella, make a
-            buy and sell that is paid over a real x402 flow and approved with clear signing.
+            Agent Pays Agent is a small demo of the Ledger Agent Stack idea: an AI agent can propose
+            a payment, but a Ledger device has the final say and signs it, so the signing key stays
+            in hardware.
           </p>
           <p>
-            The HTTP 402 and its x402 terms are real, and the EIP-712
-            <code>transferWithAuthorization</code> message is constructed for real. The signature
-            and the settlement are simulated in this build so it runs anywhere.
+            Buyo (the buyer agent) and Sella (the seller agent) make a buy and sell paid over a real
+            x402 flow. When it is time to pay, the agent builds an EIP-712
+            <code>transferWithAuthorization</code> (USDC on Base) and hands it to the Ledger signer
+            for clear signing, where you see exactly what you approve.
+          </p>
+          <p>
+            It is designed around Ledger's official tools, the Ledger Device Management Kit and the
+            Ledger Ethereum Signer Kit, which sign on a Ledger device run through the Speculos
+            emulator. In this build that signature is simulated so the demo runs anywhere; the real
+            Speculos signing arrives in a later phase.
+          </p>
+          <p class="explain__friendly">
+            x402 makes agent payments fast and open, and it pairs nicely with Coinbase's onchain
+            tooling. This demo builds on x402; it is not a replacement for it.
           </p>
           <p class="explain__note" id="aboutTag"></p>
         </div>
-      </section>
 
-      <!-- ============================= HELP ============================ -->
-      <section class="view" id="viewHelp" role="tabpanel" aria-label="Help" hidden>
-        <div class="panel explain">
+        <!-- Help -->
+        <div class="panel explain view" id="viewHelp" role="tabpanel" aria-label="Help" hidden>
           <h2 class="explain__title">How to play</h2>
           <ol class="explain__steps">
             <li>Watch Buyo and Sella walk in and meet.</li>
             <li>Read the dialogue and tap a choice to advance.</li>
-            <li>At payment time, check the clear-signing card. It shows exactly what you sign.</li>
+            <li>At payment time, check the Ledger signer card. It shows exactly what you sign.</li>
             <li>Press and hold "Hold to sign" to approve, or tap "Reject" to cancel.</li>
-            <li>Follow the status line at the top to see which step you are on.</li>
           </ol>
         </div>
       </section>
-
-      <!-- ===================== WRAP & HONESTY ========================== -->
-      <footer class="panel outro">
-        <p class="verdict" id="verdict"></p>
-        <p class="sim-tag" id="simTag"></p>
-      </footer>
     </div>
 
     <script type="module" src="./main.js"></script>
