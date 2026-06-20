@@ -55,8 +55,14 @@ Nothing here is "versus" anything.
 - `GET /api/weather` is retried with the signed `X-Payment` header; the server
   performs a **simulated settlement** and returns the forecast.
 
-The signer is behind one switch (`USE_REAL_SIGNER`) so Phase 4 can drop in the
-Ledger Ethereum Signer Kit and the Speculos emulator without touching the story.
+The signer is behind one switch (`USE_REAL_SIGNER`). With it off (default), the
+signature is simulated. With it **on**, `POST /api/sign` produces a **real**
+EIP-712 signature on the Ledger **Speculos** emulator using Ledger's official
+stack (Device Management Kit + Ethereum Signer Kit + Speculos transport). The
+Ledger packages are optional dependencies and are loaded lazily, so the
+simulated build and the Render deploy are unaffected. If Speculos is not
+reachable in real mode, the UI shows a friendly error and never fakes a
+signature. See [`docs/speculos.md`](./docs/speculos.md) for exact local steps.
 
 ## Tech
 

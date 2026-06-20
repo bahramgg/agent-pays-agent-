@@ -3,3 +3,5 @@ dist/
 *.log
 .DS_Store
 .env
+# Speculos Ethereum app binary for local real-signing (see docs/speculos.md)
+apps/

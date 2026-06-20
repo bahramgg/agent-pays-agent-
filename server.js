@@ -20,6 +20,7 @@ const distDir = resolve(root, "dist");
 
 const PORT = process.env.PORT || 3000;
 const USE_REAL_SIGNER = process.env.USE_REAL_SIGNER === "true";
+const SPECULOS_URL = process.env.SPECULOS_URL || "http://localhost:5000";
 
 // --- Demo constants (realistic-looking, clearly fake) ----------------------
 const NETWORK = "base";
@@ -167,11 +168,21 @@ async function handleApi(req, res, url) {
       return sendJson(res, 400, { error: "missing typedData.message" });
     }
     if (USE_REAL_SIGNER) {
-      // Phase 4 wires the Ledger Ethereum Signer Kit + Speculos emulator here.
-      return sendJson(res, 501, {
-        error: "real signer not wired yet",
-        hint: "set up Ledger Speculos in Phase 4",
-      });
+      // Real EIP-712 signature on the Ledger Speculos emulator. Loaded lazily so
+      // the simulated build never needs the Ledger packages. Any failure (for
+      // example Speculos not running) returns a clear error and never falls back
+      // to a fake signature.
+      try {
+        const { signTypedDataOnSpeculos } = await import("./server/realSigner.mjs");
+        const result = await signTypedDataOnSpeculos(typedData, { speculosUrl: SPECULOS_URL });
+        return sendJson(res, 200, result);
+      } catch (err) {
+        return sendJson(res, 502, {
+          error: "ledger signer unavailable",
+          detail: err && err.message ? err.message : String(err),
+          speculosUrl: SPECULOS_URL,
+        });
+      }
     }
     return sendJson(res, 200, simulatedSign(typedData));
   }
@@ -204,6 +215,8 @@ const server = createServer((req, res) => {
 server.listen(PORT, () => {
   console.log(
     `Agent Pays Agent -- serving dist/ + x402 API on http://localhost:${PORT} ` +
-      `(USE_REAL_SIGNER=${USE_REAL_SIGNER})`,
+      `(USE_REAL_SIGNER=${USE_REAL_SIGNER}` +
+      (USE_REAL_SIGNER ? `, SPECULOS_URL=${SPECULOS_URL}` : "") +
+      ")",
   );
 });
