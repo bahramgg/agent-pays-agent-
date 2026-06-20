@@ -4,117 +4,123 @@
 // them up with image-rendering: pixelated so every pixel stays a hard square.
 // No gradients, no blur, no soft shadows -- strictly flat color cells.
 //
-// Buyo and Sella are little robots with legs, so they can WALK: each has a
-// standing pose plus a 2-frame walk cycle (legs spread / legs together). They
-// share an upper body and only swap the leg rows, which keeps the grids honest.
-//
-// The Ledger Stax device is built in CSS (hard-edged blocks) for its readable
-// touchscreen, paged review, and hold-to-sign control.
+// Buyo and Sella are proper little robots: antenna, head with a face, a neck,
+// a torso with ARMS, and two LEGS with feet. They are NOT boxed in a frame --
+// they stand on the stage. Each robot is composed from a head (its identity)
+// plus shared neck + body frames; the body has three poses (stand / walkA /
+// walkB) whose arms and legs differ, so the walk cycle reads naturally.
 
 const PALETTE: Record<string, string> = {
   ".": "transparent",
-  K: "#0a0b0d", // near-black outline / legs
+  K: "#0a0b0d", // near-black outline / limbs
   B: "#0052ff", // Base Blue (dominant)
   D: "#0040c8", // flat darker blue (shade)
   L: "#3d7bff", // flat lighter blue (highlight)
   W: "#ffffff", // white (face / eyes)
-  Y: "#f5b301", // gold accent (coin / sun)
+  Y: "#f5b301", // gold accent
 };
 
 export type SpriteMap = string[];
 
-// --- shared upper bodies (rows 0-21) --------------------------------------
-const buyoUpper: SpriteMap = [
+// --- heads (rows 0-13) carry each robot's identity -----------------------
+// Buyo: single center antenna with a light-blue bulb, round eyes.
+const headBuyo: SpriteMap = [
   "........................",
-  "...........LL...........",
-  "...........LL...........",
+  "...........KK...........",
+  "..........KLLK..........",
   "...........KK...........",
   ".......KKKKKKKKKK.......",
-  "......KLLLLLLLLLLK......",
-  ".....KBBBBBBBBBBBBK.....",
-  ".....KBBBBBBBBBBBBK.....",
-  ".....KBBWWWWWWWWBBK.....",
-  ".....KBBWKKWWKKWBBK.....",
-  ".....KBBWKKWWKKWBBK.....",
-  ".....KBBWWWWWWWWBBK.....",
-  ".....KBBWKWWWWKWBBK.....",
-  ".....KBBWWKKKKWWBBK.....",
-  ".....KBBBBBBBBBBBBK.....",
-  ".....KDDDDDDDDDDDDK.....",
+  "......KBBBBBBBBBBK......",
+  "......KBWWWWWWWWBK......",
+  "......KBWKKWWKKWBK......",
+  "......KBWKKWWKKWBK......",
+  "......KBWWWWWWWWBK......",
+  "......KBWKWWWWKWBK......",
+  "......KBWWKKKKWWBK......",
+  "......KBBBBBBBBBBK......",
   ".......KKKKKKKKKK.......",
-  "......KKKKKKKKKKKK......",
-  "......KBBBYYYYBBBK......",
-  ".....KKBBBYKKYBBBKK.....",
-  "......KBBBYKKYBBBK......",
-  "......KBBBYYYYBBBK......",
 ];
 
-const sellaUpper: SpriteMap = [
+// Sella: two antennae with white bulbs, narrow happy eyes.
+const headSella: SpriteMap = [
   "........................",
-  ".......L......L.........",
+  ".......W......W.........",
   ".......K......K.........",
   ".......KK....KK.........",
   ".......KKKKKKKKKK.......",
-  "......KLLLLLLLLLLK......",
-  ".....KBBBBBBBBBBBBK.....",
-  ".....KBBBBBBBBBBBBK.....",
-  ".....KBBWWWWWWWWBBK.....",
-  ".....KBBWKWWWWKWBBK.....",
-  ".....KBBWKWWWWKWBBK.....",
-  ".....KBBWWWWWWWWBBK.....",
-  ".....KBBWWKKKKWWBBK.....",
-  ".....KBBWKWWWWKWBBK.....",
-  ".....KBBBBBBBBBBBBK.....",
-  ".....KDDDDDDDDDDDDK.....",
+  "......KBBBBBBBBBBK......",
+  "......KBWWWWWWWWBK......",
+  "......KBWKWWWWKWBK......",
+  "......KBWKWWWWKWBK......",
+  "......KBWWWWWWWWBK......",
+  "......KBWWWWWWWWBK......",
+  "......KBWWKKKKWWBK......",
+  "......KBBBBBBBBBBK......",
   ".......KKKKKKKKKK.......",
-  "......KKKKKKKKKKKK......",
-  "......KBBBYYYYBBBK......",
-  ".....KKBBYYYYYYBBKK.....",
-  "......KBBYYYYYYBBK......",
-  "......KBBBYYYYBBBK......",
 ];
 
-// --- swappable leg rows (rows 22-25) --------------------------------------
-const legsStand: SpriteMap = [
-  "......KDDDDDDDDDDK......",
-  "........KK....KK........",
-  "........KK....KK........",
-  ".......KKK...KKK........",
+// --- shared neck + shoulders (rows 14-15) ---------------------------------
+const neck: SpriteMap = [
+  ".........KKKKKK.........",
+  "......KKKKKKKKKKKK......",
 ];
-const legsWalkA: SpriteMap = [
-  "......KDDDDDDDDDDK......",
+
+// --- body poses (rows 16-29): torso + arms + legs -------------------------
+// Arms hang at cols 4-5 (left) and 18-19 (right); torso is cols 7-16.
+const bodyStand: SpriteMap = [
+  "....KK.KBBBBBBBBK.KK....",
+  "....KK.KBLLLLLLBK.KK....",
+  "....KK.KBBBBBBBBK.KK....",
+  "....KK.KBBBBBBBBK.KK....",
+  ".......KBBBBBBBBK.......",
+  ".......KBBBBBBBBK.......",
+  ".......KBBBBBBBBK.......",
+  ".......KKKKKKKKKK.......",
+  "........KK....KK........",
+  "........KK....KK........",
+  "........KK....KK........",
+  "........KK....KK........",
+  "........KK....KK........",
+  ".......KKKK..KKKK.......",
+];
+
+// Left arm raised, right arm low; legs striding apart.
+const bodyWalkA: SpriteMap = [
+  "....KK.KBBBBBBBBK.KK....",
+  "....KK.KBLLLLLLBK.KK....",
+  "....KK.KBBBBBBBBK.KK....",
+  ".......KBBBBBBBBK.KK....",
+  ".......KBBBBBBBBK.KK....",
+  ".......KBBBBBBBBK.......",
+  ".......KBBBBBBBBK.......",
+  ".......KKKKKKKKKK.......",
+  "........KK....KK........",
   "........KK....KK........",
   ".......KK......KK.......",
-  "......KKK....KKK........",
-];
-const legsWalkB: SpriteMap = [
-  "......KDDDDDDDDDDK......",
-  "........KK....KK........",
-  "........KK....KK........",
-  "........KKKKKK..........",
+  ".......KK......KK.......",
+  "......KK........KK......",
+  "......KKK......KKK......",
 ];
 
-const compose = (upper: SpriteMap, legs: SpriteMap): SpriteMap => [...upper, ...legs];
-
-// --- Weather Oracle service icon (gold sun) -------------------------------
-const weather: SpriteMap = [
-  "................",
-  ".......YY.......",
-  "...Y...YY...Y...",
-  "....Y.YYYY.Y....",
-  ".....YYYYYY.....",
-  "...YYYYYYYYYY...",
-  "..YYYYYYYYYYYY..",
-  "YY.YYYYYYYYYY.YY",
-  "YY.YYYYYYYYYY.YY",
-  "..YYYYYYYYYYYY..",
-  "...YYYYYYYYYY...",
-  ".....YYYYYY.....",
-  "....Y.YYYY.Y....",
-  "...Y...YY...Y...",
-  ".......YY.......",
-  "................",
+// Right arm raised, left arm low; legs together (planted step).
+const bodyWalkB: SpriteMap = [
+  "....KK.KBBBBBBBBK.KK....",
+  "....KK.KBLLLLLLBK.KK....",
+  "....KK.KBBBBBBBBK.KK....",
+  "....KK.KBBBBBBBBK.......",
+  "....KK.KBBBBBBBBK.......",
+  ".......KBBBBBBBBK.......",
+  ".......KBBBBBBBBK.......",
+  ".......KKKKKKKKKK.......",
+  "........KK....KK........",
+  "........KK....KK........",
+  "........KK....KK........",
+  "........KK....KK........",
+  "........KKK..KKK........",
+  "........KKKKKKKK........",
 ];
+
+const compose = (head: SpriteMap, body: SpriteMap): SpriteMap => [...head, ...neck, ...body];
 
 // --- Ledger corner-bracket mark (for the Stax bottom bar) -----------------
 const ledgerMark: SpriteMap = [
@@ -130,11 +136,17 @@ const ledgerMark: SpriteMap = [
 ];
 
 export const ACTORS = {
-  buyo: { stand: compose(buyoUpper, legsStand), walk: [compose(buyoUpper, legsWalkA), compose(buyoUpper, legsWalkB)] },
-  sella: { stand: compose(sellaUpper, legsStand), walk: [compose(sellaUpper, legsWalkA), compose(sellaUpper, legsWalkB)] },
+  buyo: {
+    stand: compose(headBuyo, bodyStand),
+    walk: [compose(headBuyo, bodyWalkA), compose(headBuyo, bodyWalkB)],
+  },
+  sella: {
+    stand: compose(headSella, bodyStand),
+    walk: [compose(headSella, bodyWalkA), compose(headSella, bodyWalkB)],
+  },
 } as const;
 
-export const SPRITES = { weather, ledgerMark } as const;
+export const SPRITES = { ledgerMark } as const;
 
 /** Resize `canvas` to fit `map` and draw it (1 cell = 1 native pixel). */
 export function drawSprite(canvas: HTMLCanvasElement, map: SpriteMap): void {
