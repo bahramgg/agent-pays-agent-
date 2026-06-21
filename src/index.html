@@ -20,6 +20,13 @@
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
+    <!-- Intro loader: types the title, then reveals the app -->
+    <div class="loader" id="loader" role="status" aria-label="Loading">
+      <div class="loader__inner">
+        <h1 class="loader__title" id="loaderTitle"></h1><span class="loader__cursor" aria-hidden="true"></span>
+      </div>
+    </div>
+
     <div class="app">
       <!-- ============================ HEADER ============================ -->
       <header class="panel masthead">

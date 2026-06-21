@@ -1,7 +1,9 @@
-// Entry point: start the cartoon engine (it creates the actors and the device).
+// Entry point: play the intro loader, then start the cartoon engine.
+import { runLoader } from "./loader.js";
 import { startEngine } from "./engine.js";
 
-function init(): void {
+async function init(): Promise<void> {
+  await runLoader();
   void startEngine();
 }
 
