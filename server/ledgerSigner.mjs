@@ -122,7 +122,9 @@ export async function signX402Authorization(message) {
   const from = await getLedgerAddress();
   const authorization = {
     from,
-    to: ethers.getAddress(message.to),
+    // Lowercase before getAddress so a placeholder recipient with a non-checksum
+    // mixed case still normalizes instead of throwing "bad address checksum".
+    to: ethers.getAddress(String(message.to).toLowerCase()),
     value: String(message.value),
     validAfter: String(message.validAfter ?? "0"),
     validBefore: String(message.validBefore),
