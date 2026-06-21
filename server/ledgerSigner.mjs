@@ -31,9 +31,13 @@
 // uses its test seed.
 
 import { createRequire } from "module";
+import { readFileSync } from "fs";
+import { fileURLToPath } from "url";
+import { dirname, join } from "path";
 import { ethers } from "ethers";
 
 const require = createRequire(import.meta.url);
+const HERE = dirname(fileURLToPath(import.meta.url));
 // CommonJS builds (the ESM "lib-es" builds are broken under Node).
 const Eth = require("@ledgerhq/hw-app-eth").default;
 const Transport = require("@ledgerhq/hw-transport").default;
@@ -66,14 +70,36 @@ const CAL_HEADERS = {
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
   Accept: "application/json",
 };
-// A signed descriptor can also be baked in (env or committed JSON) so runtime
-// never needs the CAL at all. LEDGER_EIP712_FILTERS is the MessageFilters JSON.
-let bundledFilters = null;
-try {
-  bundledFilters = process.env.LEDGER_EIP712_FILTERS ? JSON.parse(process.env.LEDGER_EIP712_FILTERS) : null;
-} catch {
-  bundledFilters = null;
+// A signed descriptor can be baked in so runtime never needs the CAL at all
+// (Ledger's CAL WAF 403s datacenter IPs like Railway's). Source order: the
+// LEDGER_EIP712_FILTERS env (MessageFilters JSON), else the committed file
+// server/eip712-usdc-base-filters.json. The file may be either the raw CAL
+// /v1/dapps response or just the inner MessageFilters object.
+function loadBundledFilters() {
+  const contract = DOMAIN.verifyingContract.toLowerCase();
+  const pick = (parsed) => {
+    if (!parsed) return null;
+    // Raw CAL response: an array of dapp objects.
+    if (Array.isArray(parsed)) {
+      const item = parsed.find((x) => x?.eip712_signatures?.[contract]?.[OUR_SCHEMA_HASH]);
+      return item ? item.eip712_signatures[contract][OUR_SCHEMA_HASH] : null;
+    }
+    // Already the inner MessageFilters object.
+    if (parsed.contractName || parsed.fields) return parsed;
+    return null;
+  };
+  try {
+    if (process.env.LEDGER_EIP712_FILTERS) return pick(JSON.parse(process.env.LEDGER_EIP712_FILTERS));
+  } catch {
+    /* fall through to the file */
+  }
+  try {
+    return pick(JSON.parse(readFileSync(join(HERE, "eip712-usdc-base-filters.json"), "utf8")));
+  } catch {
+    return null;
+  }
 }
+const bundledFilters = loadBundledFilters();
 
 let cachedFilters = bundledFilters; // the signed MessageFilters, once known
 let lastCalStatus = bundledFilters ? "using bundled descriptor" : "not attempted";
