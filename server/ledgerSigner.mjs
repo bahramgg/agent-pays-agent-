@@ -74,8 +74,24 @@ const VERIFY_TYPES = { TransferWithAuthorization: TYPES.TransferWithAuthorizatio
 
 /** Minimal Ledger transport that ferries APDUs to Speculos over HTTP. */
 class SpeculosHttpTransport extends Transport {
+  constructor() {
+    super();
+    this.resetDiag();
+  }
+
+  // Diagnostics so we can tell clear signing from the raw fallback: did any
+  // EIP-712 filtering APDU (E0 1E) get sent (descriptor fetched + applied), and
+  // which APDU/SW failed.
+  resetDiag() {
+    this.sawFiltering = false;
+    this.lastReqIns = null;
+    this.lastSw = null;
+  }
+
   async exchange(apdu) {
     const hex = apdu.toString("hex");
+    this.lastReqIns = hex.slice(0, 8);
+    if (hex.startsWith("e01e")) this.sawFiltering = true;
     // The SIGN APDU blocks on user approval; everything else is instant.
     const timeoutMs = hex.startsWith("e00c") ? SIGN_TIMEOUT_MS : ADDRESS_TIMEOUT_MS;
     const controller = new AbortController();
@@ -105,16 +121,18 @@ class SpeculosHttpTransport extends Transport {
     const json = await res.json().catch(() => ({}));
     const respHex = String(json.data || "");
     if (!respHex) throw new Error(`Empty APDU response from Speculos: ${JSON.stringify(json)}`);
+    this.lastSw = respHex.slice(-4);
     // Base Transport.send checks the trailing status word and throws on non-9000.
     return Buffer.from(respHex, "hex");
   }
 }
 
+let transport = null;
 let ethPromise = null;
 async function getEth() {
   if (!ethPromise) {
     ethPromise = (async () => {
-      const transport = new SpeculosHttpTransport();
+      transport = new SpeculosHttpTransport();
       // Default loadConfig keeps the Ledger CAL service URL, so the SDK fetches
       // the signed ERC-7730 clear-signing descriptor for this message. Ledger's
       // registry has one for Circle USDC transferWithAuthorization (x402) on
@@ -190,10 +208,20 @@ export async function signX402Authorization(message) {
   let raw;
   try {
     const eth = await getEth();
-    // Full clear signing: streams the struct, device shows the fields, user approves.
+    transport.resetDiag();
+    // Full clear signing: streams the message, fetches the ERC-7730 descriptor,
+    // and the device shows the curated fields for the user to approve.
     raw = await eth.signEIP712Message(DERIVATION_PATH, typedData);
   } catch (err) {
-    throw explainError(err);
+    // Was the clear-signing descriptor actually applied? If no E0 1E filtering
+    // APDU was sent, the descriptor never loaded (CAL unreachable or none for
+    // this message) and the app fell back to the raw message.
+    const diag = transport
+      ? ` [descriptor ${transport.sawFiltering ? "loaded" : "NOT loaded"}; last APDU ${transport.lastReqIns || "?"} -> SW ${transport.lastSw || "?"}]`
+      : "";
+    const e = explainError(err);
+    e.message += diag;
+    throw e;
   }
 
   const r = "0x" + raw.r;
