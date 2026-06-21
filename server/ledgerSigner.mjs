@@ -215,14 +215,16 @@ function ensureTransport() {
   return transport;
 }
 
-// Build an Eth client. For signing we hand it the signed descriptor as a static
-// filter (and disable the SDK's own CAL fetch, which the WAF 403s) so the device
-// clear-signs the curated Circle USDC fields (From / To / Amount), hiding nonce /
-// validAfter / validBefore. Without a descriptor it streams the raw message.
-function makeEth(filters) {
-  const loadConfig = filters
-    ? { staticEIP712SignaturesV2: { [STATIC_KEY]: filters }, calServiceURL: null }
-    : {};
+// Build an Eth client configured exactly like the @ledgerhq/hw-app-eth README:
+// the dynamic CAL service stays preferred (default calServiceURL), and our
+// signed descriptor is supplied as the documented staticEIP712SignaturesV2
+// offline fallback. The SDK fetches from the CAL when reachable and otherwise
+// uses the static blob, so on a datacenter host (where Ledger's WAF 403s the
+// CAL) the device still clear-signs the curated Circle USDC fields
+// (From / To / Amount), hiding nonce / validAfter / validBefore. With no
+// descriptor available it streams the raw message.
+function makeEth() {
+  const loadConfig = bundledFilters ? { staticEIP712SignaturesV2: { [STATIC_KEY]: bundledFilters } } : {};
   return new Eth(ensureTransport(), "w0w", loadConfig);
 }
 
@@ -249,7 +251,7 @@ let cachedAddress = null;
 export async function getLedgerAddress() {
   if (cachedAddress) return cachedAddress;
   try {
-    const eth = makeEth(null);
+    const eth = makeEth();
     const { address } = await eth.getAddress(DERIVATION_PATH, false);
     cachedAddress = ethers.getAddress(address);
     return cachedAddress;
@@ -284,22 +286,22 @@ export async function signX402Authorization(message) {
     message: authorization,
   };
 
-  // Fetch (or reuse) the signed descriptor and hand it to the SDK as a static
-  // filter, so the device clear-signs the curated fields.
-  const filters = await getMessageFilters();
-
   let raw;
   try {
-    const eth = makeEth(filters);
+    const eth = makeEth();
     ensureTransport().resetDiag();
-    // Clear signing: streams the message with the descriptor applied; the device
-    // shows the curated fields (From / To / Amount) for the user to approve.
+    // Clear signing: the SDK resolves the descriptor (CAL preferred, then the
+    // static fallback) and streams the message; the device shows the curated
+    // fields (From / To / Amount) for the user to approve.
     raw = await eth.signEIP712Message(DERIVATION_PATH, typedData);
   } catch (err) {
     // Did the E0 1E filtering APDUs actually go out (curated clear signing), or
     // did it fall back to the raw message? Report that plus why the descriptor
     // was or was not available.
     const loaded = transport && transport.sawFiltering;
+    // If filtering never happened, probe the CAL ourselves to explain why the
+    // descriptor was unavailable (reachability / WAF / schema), for diagnostics.
+    if (!loaded && !bundledFilters) await getMessageFilters();
     const diag =
       ` [descriptor ${loaded ? "applied" : "NOT applied"}; last APDU ${transport ? transport.lastReqIns : "?"}` +
       ` -> SW ${transport ? transport.lastSw : "?"}; CAL: ${lastCalStatus}]`;
