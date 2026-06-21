@@ -311,8 +311,14 @@ async function goTo(id: string): Promise<void> {
       return;
     }
     ctx.signed = signed;
+    // Real mode returns the exact authorization the device signed (from = the
+    // Ledger address). Use it for settlement and display so everything is honest.
+    if (signed.authorization && ctx.typedData) {
+      ctx.typedData = { ...ctx.typedData, message: signed.authorization };
+    }
     ctx.values.sigShort = shortHex(signed.signature, 10, 6);
-    setCardState("signed", ctx.values.sigShort);
+    const signerShort = signed.signer ? shortHex(signed.signer, 6, 4) : undefined;
+    setCardState("signed", ctx.values.sigShort, signerShort);
     await goTo(node.goto!);
     return;
   }

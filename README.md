@@ -57,12 +57,13 @@ Nothing here is "versus" anything.
 
 The signer is behind one switch (`USE_REAL_SIGNER`). With it off (default), the
 signature is simulated. With it **on**, `POST /api/sign` produces a **real**
-EIP-712 signature on the Ledger **Speculos** emulator using Ledger's official
-stack (Device Management Kit + Ethereum Signer Kit + Speculos transport). The
-Ledger packages are optional dependencies and are loaded lazily, so the
-simulated build and the Render deploy are unaffected. If Speculos is not
-reachable in real mode, the UI shows a friendly error and never fakes a
-signature. See [`docs/speculos.md`](./docs/speculos.md) for exact local steps.
+EIP-712 x402 signature on the Ledger **Speculos** emulator by talking to it
+directly over HTTP APDU (`server/ledgerSigner.mjs`), then verifies the signature
+recovers to the Ledger address with `ethers`. `ethers` is an optional dependency
+loaded lazily, so the simulated build and the Render deploy are unaffected. If
+Speculos is not reachable in real mode, the UI shows a friendly error and never
+fakes a signature. See [`docs/speculos.md`](./docs/speculos.md) for exact local
+steps (including enabling Blind signing).
 
 ## Tech
 

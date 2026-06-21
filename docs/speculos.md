@@ -1,71 +1,58 @@
-# Real Ledger signing with Speculos
+# Real x402 signing with Speculos
 
 By default this app uses a **simulated** signer, so it runs anywhere and the
 Render deploy is unaffected. This page shows how to switch on **real** EIP-712
-signing by running the Ledger **Ethereum app** inside the **Speculos** emulator
-and pointing the server at it.
+x402 signing by running the Ledger **Ethereum app** inside the **Speculos**
+emulator and pointing the server at it.
 
-When `USE_REAL_SIGNER=true`, `POST /api/sign` signs the real
-`transferWithAuthorization` typed-data on Speculos using Ledger's official stack:
+When `USE_REAL_SIGNER=true`, `POST /api/sign` signs the real x402
+`transferWithAuthorization` typed-data on Speculos by talking to it **directly
+over HTTP APDU** (see `server/ledgerSigner.mjs`). We deliberately do **not** use
+`@ledgerhq/hw-app-eth` or the signer-kit packages (ESM import bug under Node 24).
+The only runtime dependency for real mode is `ethers`.
 
-- `@ledgerhq/device-management-kit` (DMK core)
-- `@ledgerhq/device-transport-kit-speculos` (DMK to Speculos over HTTP)
-- `@ledgerhq/device-signer-kit-ethereum` (`signTypedData`)
-- `@ledgerhq/speculos-device-controller` (optional, to drive the emulator)
+- APDU: `GET ADDRESS` = `e0 02 00 00 <Lc> <path>`; `SIGN EIP-712 (hashed)` =
+  `e0 0c 00 00 <Lc> <path> <domainHash 32> <structHash 32>`.
+- The signature is parsed as `v | r | s | 9000`, `v` is normalized to 27/28, and
+  it is verified to recover to the Ledger address with `ethers.verifyTypedData`.
 
 > Speculos uses its own well-known **test seed**. No real keys, no real funds,
-> and nothing secret is stored in this repo. Settlement stays simulated.
+> nothing secret is stored in this repo. Settlement stays simulated.
 
-These steps are written for **Ubuntu or Windows WSL2** with Docker.
+These steps are for **Ubuntu or Windows WSL2** with Docker.
 
 ---
 
 ## 1. Prerequisites
 
 ```bash
-# Docker (Ubuntu)
 sudo apt-get update && sudo apt-get install -y docker.io
 sudo usermod -aG docker "$USER"   # then log out/in once
-
-# Node 18+ and this repo already cloned and built
-node --version
-npm install
+node --version                    # 18+ (works on 24)
+npm install                       # installs build tools + ethers (optional dep)
 npm run build
 ```
 
-## 2. Install the Ledger signing packages
-
-These are optional dependencies (the simulated build does not need them), so
-install them explicitly the first time:
+If `ethers` did not get installed (it is an optional dependency), install it
+explicitly for real mode:
 
 ```bash
-npm install \
-  @ledgerhq/device-management-kit \
-  @ledgerhq/device-signer-kit-ethereum \
-  @ledgerhq/device-transport-kit-speculos \
-  @ledgerhq/speculos-device-controller \
-  rxjs
+npm install ethers
 ```
 
-## 3. Get the Ethereum app binary (ELF)
+## 2. Get the Ethereum app binary (ELF)
 
 Speculos runs a real Ledger app binary. Put an Ethereum app `.elf` for your
-chosen device model at `./apps/ethereum.elf`:
+device model at `./apps/ethereum.elf`:
 
 ```bash
 mkdir -p apps
-# Download an Ethereum app build for your model (for example Nano S Plus) from
-# Ledger's app-ethereum builds and save it as apps/ethereum.elf:
-#   https://github.com/LedgerHQ/app-ethereum   (Releases / CI build artifacts)
-# Then confirm it exists:
+# Download an Ethereum app build (for example Nano S Plus) and save it as
+# apps/ethereum.elf -- see https://github.com/LedgerHQ/app-ethereum
 ls -lh apps/ethereum.elf
 ```
 
-If you prefer, you can build it yourself with Ledger's
-[`ledger-app-builder`](https://github.com/LedgerHQ/ledger-app-builder), but the
-prebuilt `.elf` above is the fastest path.
-
-## 4. Run Speculos (listens on port 5000)
+## 3. Run Speculos (keep this terminal open)
 
 ```bash
 docker run --rm -it \
@@ -78,69 +65,77 @@ docker run --rm -it \
   /speculos/apps/ethereum.elf
 ```
 
-- The REST API and web UI are now at **http://localhost:5000**.
-- Open that URL in a browser to watch the emulated screen and press its buttons.
-- `--model` can be `nanos`, `nanosp`, `nanox`, `stax`, or `flex`.
+- API + web UI: **http://localhost:5000** (open it in a browser to see the
+  emulated screen and press its buttons).
+- **Leave this terminal running the whole time.** Closing it stops the emulator.
 
-Quick check that Speculos is up:
+Quick reachability check:
 
 ```bash
 curl -s http://localhost:5000/events >/dev/null && echo "Speculos is reachable"
 ```
 
-## 5. Start the app in real-signer mode
+## 4. Enable Blind signing (required, one time)
 
-In a second terminal, from the repo root:
+The hashed EIP-712 signing call is gated behind the app's Blind signing setting.
+In the Speculos web UI at http://localhost:5000:
+
+1. From the Ethereum app home, press **right** to "Settings", press **both** to enter.
+2. Open **Blind signing** and press **both** to set it to **Enabled**.
+3. Press **right** to "Back", **both** to return to the app home.
+
+If Blind signing is off you will get `SW=6985` or `6a80` (the server reports it).
+
+## 5. Start the app in real-signer mode (second terminal)
 
 ```bash
 USE_REAL_SIGNER=true SPECULOS_URL=http://localhost:5000 npm start
 ```
 
-Then open **http://localhost:3000** and play through the demo. At the Ledger
-Signer card, press **Hold to sign**. The server sends the typed-data to Speculos
-and signs it.
+Open **http://localhost:3000**, play through the demo to the **Ledger Signer**
+card, and press **Hold to sign**. The server sends the typed-data to Speculos.
 
-- The server tries to **auto-approve** on Speculos via its automation API. If it
-  does not advance on its own, just press the buttons in the Speculos web UI at
-  http://localhost:5000 to reach the approve screen and confirm.
-- On success the card shows **SIGNED ON LEDGER** with the real signature hash,
-  and the bottom line switches to "Signed on a real Ledger emulator."
-- If Speculos is not reachable, the card shows a friendly "signer unavailable"
-  message and you can try again. The app never falls back to a fake signature in
-  real mode.
+Then **approve on Speculos** (in the web UI at http://localhost:5000): press
+**right** through the screens to reach "Sign message" / "Approve", then press
+**both** to confirm.
 
-## 6. Optional: direct API smoke test
+On success the card shows **SIGNED ON LEDGER** with the real signature hash and
+"Signed by" the real Ledger address, and the bottom line says the EIP-712 x402
+authorization was signed on a Ledger (Speculos) device. If Speculos is not
+reachable, the card shows a friendly "signer unavailable" message and you can
+try again. It never falls back to a fake signature in real mode.
 
-With Speculos running and the server in real mode, you can sign a sample message
-directly. Approve it on the Speculos screen when prompted:
+## 6. Optional: reference script and direct API test
+
+`sign-eip712.mjs` (project root) is the standalone reference: it builds the
+transferWithAuthorization message, signs it on Speculos, and self-verifies with
+ethers. Run it with Speculos up and approve on the device:
 
 ```bash
-# Get real x402 terms from the running app, build the EIP-712 message, and sign:
+node sign-eip712.mjs
+```
+
+Or hit the server endpoint directly (approve on Speculos when prompted):
+
+```bash
 TERMS=$(curl -s http://localhost:3000/api/weather)
 node -e '
   const t = JSON.parse(process.argv[1]).accepts[0];
-  const td = {
-    domain: { name: t.extra.name, version: t.extra.version, chainId: t.chainId, verifyingContract: t.asset },
-    types: { TransferWithAuthorization: [
-      {name:"from",type:"address"},{name:"to",type:"address"},{name:"value",type:"uint256"},
-      {name:"validAfter",type:"uint256"},{name:"validBefore",type:"uint256"},{name:"nonce",type:"bytes32"}
-    ]},
-    primaryType: "TransferWithAuthorization",
-    message: { from:"0x4C2a1bE73D9f8A0c1B2d3E4F5a6B7c8D9e0F1A2b", to:t.payTo, value:t.maxAmountRequired,
-               validAfter:t.validAfter, validBefore:t.validBefore, nonce:t.nonce }
-  };
+  const td = { domain:{}, types:{}, primaryType:"TransferWithAuthorization",
+    message:{ from:"0x0000000000000000000000000000000000000000", to:t.payTo, value:t.maxAmountRequired,
+      validAfter:t.validAfter, validBefore:t.validBefore, nonce:t.nonce } };
   process.stdout.write(JSON.stringify({ typedData: td }));
 ' "$TERMS" > /tmp/sign-body.json
-
-curl -s -X POST http://localhost:3000/api/sign \
-  -H 'Content-Type: application/json' \
-  --data @/tmp/sign-body.json
-# -> { "signature": "0x...", "r": "0x...", "s": "0x...", "v": 27/28, "simulated": false, ... }
+curl -s -X POST http://localhost:3000/api/sign -H 'Content-Type: application/json' --data @/tmp/sign-body.json
+# -> { "authorization": {..., from: <ledger addr>}, "signature":"0x...", "v":27/28, "simulated":false, ... }
 ```
+
+(The server forces `from` to the real Ledger address, so the signed
+authorization is a valid x402 message.)
 
 ## 7. Back to simulated mode
 
-Just start without the env var (the default), exactly as before:
+Start without the env var (the default), exactly as before:
 
 ```bash
 npm start
@@ -156,4 +151,3 @@ unaffected by anything on this page.
 | `USE_REAL_SIGNER`         | `false`                 | `true` signs on Speculos; else simulated |
 | `SPECULOS_URL`            | `http://localhost:5000` | Where Speculos is listening              |
 | `LEDGER_DERIVATION_PATH`  | `44'/60'/0'/0/0`        | Derivation path used for signing         |
-| `SPECULOS_SIGN_TIMEOUT_MS`| `60000`                 | How long to wait for on-device approval  |
