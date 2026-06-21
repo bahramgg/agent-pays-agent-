@@ -56,6 +56,7 @@ function fieldsHtml(d: SignData): string {
 export function setCardState(
   state: "idle" | "signed" | "cancelled" | "error",
   detail?: string,
+  signerShort?: string,
 ): void {
   if (state === "error") {
     cardEl.innerHTML = `
@@ -85,13 +86,18 @@ export function setCardState(
   const d = lastData;
   const badge = realMode ? "SIGNED ON LEDGER" : "SIGNED (SIMULATED)";
   const note = realMode
-    ? "Signed on the Ledger Speculos emulator. The key never left the device. Settlement is simulated."
+    ? "Real EIP-712 x402 authorization, signed on a Ledger (Speculos) device. The key never left the device. Settlement is simulated and no real funds move."
     : "The key never left the device. Settlement is simulated.";
+  const signedBy =
+    realMode && signerShort
+      ? `<div class="cs__sig">Signed by <code>${esc(signerShort)}</code></div>`
+      : "";
   cardEl.innerHTML = `
     <div class="cs">
       <span class="cs__badge cs__badge--good">${badge}</span>
       ${d ? fieldsHtml(d) : ""}
       <div class="cs__sig">Signature <code>${esc(detail ?? "")}</code></div>
+      ${signedBy}
       <p class="cs__note">${note}</p>
     </div>`;
 }

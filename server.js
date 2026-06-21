@@ -168,13 +168,14 @@ async function handleApi(req, res, url) {
       return sendJson(res, 400, { error: "missing typedData.message" });
     }
     if (USE_REAL_SIGNER) {
-      // Real EIP-712 signature on the Ledger Speculos emulator. Loaded lazily so
-      // the simulated build never needs the Ledger packages. Any failure (for
-      // example Speculos not running) returns a clear error and never falls back
-      // to a fake signature.
+      // Real EIP-712 x402 signature on the Ledger Speculos emulator (direct APDU,
+      // see server/ledgerSigner.mjs). Loaded lazily so the simulated build never
+      // needs ethers or Speculos. Any failure (for example Speculos not running,
+      // or Blind signing off) returns a clear error and never falls back to a
+      // fake signature.
       try {
-        const { signTypedDataOnSpeculos } = await import("./server/realSigner.mjs");
-        const result = await signTypedDataOnSpeculos(typedData, { speculosUrl: SPECULOS_URL });
+        const { signX402Authorization } = await import("./server/ledgerSigner.mjs");
+        const result = await signX402Authorization(typedData.message);
         return sendJson(res, 200, result);
       } catch (err) {
         return sendJson(res, 502, {

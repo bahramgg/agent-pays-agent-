@@ -123,8 +123,12 @@ export function buildAuthorization(terms: PaymentTerms): TypedData {
 
 export interface Signed {
   signature: string;
-  address: string | null;
+  address?: string | null;
   simulated: boolean;
+  /** Real mode only: the exact authorization the device signed (from = signer). */
+  authorization?: TypedData["message"];
+  /** Real mode only: the Ledger signer address. */
+  signer?: string;
 }
 
 /** Ask the server to sign (simulated now, Ledger Speculos in Phase 4). */
