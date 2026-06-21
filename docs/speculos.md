@@ -75,16 +75,21 @@ Quick reachability check:
 curl -s http://localhost:5000/events >/dev/null && echo "Speculos is reachable"
 ```
 
-## 4. Enable Blind signing (required, one time)
+## 4. Enable clear signing (required, one time)
 
-The hashed EIP-712 signing call is gated behind the app's Blind signing setting.
+We stream the full EIP-712 message to the app, so the device shows the actual
+fields (to, value, nonce, ...) and you approve exactly what is signed. That is
+clear signing. The app allows it when **"Display raw messages"** (verbose
+EIP-712) is on. Blind signing is **not** needed.
+
 In the Speculos web UI at http://localhost:5000:
 
 1. From the Ethereum app home, press **right** to "Settings", press **both** to enter.
-2. Open **Blind signing** and press **both** to set it to **Enabled**.
+2. Open **Display raw messages** and press **both** to set it to **Enabled**.
 3. Press **right** to "Back", **both** to return to the app home.
 
-If Blind signing is off you will get `SW=6985` or `6a80` (the server reports it).
+If it is off you will get `SW=6985` or `6a80` (the server reports it). When you
+sign, scroll through the fields with **right**, then **both** on "Approve".
 
 ## 5. Start the app in real-signer mode (second terminal)
 
@@ -145,7 +150,7 @@ Render server cannot reach `localhost`, so you expose your local Speculos with a
 tunnel and point Render at it. Speculos still runs on your machine and you still
 press its buttons to approve, so you are the one signing.
 
-1. Keep Speculos running locally with Blind signing enabled (sections 3 and 4).
+1. Keep Speculos running locally with "Display raw messages" enabled (sections 3 and 4).
 
 2. Start a tunnel to port 5000 and copy the public HTTPS URL it prints:
 

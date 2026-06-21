@@ -45,12 +45,18 @@ git push
    - its **private hostname**, shown as `RAILWAY_PRIVATE_DOMAIN`, for example
      `speculos.railway.internal`
 
-## 2. Enable Blind signing on the hosted device (one time)
+## 2. Enable clear signing on the hosted device (one time)
+
+We stream the full EIP-712 message so the device shows the actual fields (to,
+value, nonce, ...) and you approve exactly what is signed. That is clear
+signing, not blind signing. The app gates it behind the **"Display raw
+messages"** setting (verbose EIP-712), so turn that on (Blind signing is **not**
+needed).
 
 Open the speculos **public URL** in a browser. On the emulated device:
 
 1. Press **right** to "Settings", press **both** to enter.
-2. Open **Blind signing**, press **both** to set **Enabled**.
+2. Open **Display raw messages**, press **both** to set **Enabled**.
 3. Press **right** to "Back", **both** to return to the app home.
 
 Note: a redeploy or restart of the speculos service resets this, so re-enable it
@@ -76,7 +82,8 @@ after any redeploy.
 1. Open the **web** public URL and play to the **Ledger Signer** card.
 2. Press **Hold to sign**. The card switches to **AWAITING APPROVAL** and shows
    an **"Open the signer to approve"** link (that is your speculos public URL).
-3. Open it, press **right** to "Sign message" / "Approve", then **both**.
+3. Open it. The device shows the EIP-712 fields (to, value, nonce, ...): scroll
+   through them with **right**, review, then **both** on "Approve".
 4. The real signature appears back on the web app, the card shows **SIGNED ON
    LEDGER** with the signer address, and the wrap line says it was signed on a
    Ledger (Speculos) device.
@@ -89,7 +96,9 @@ after any redeploy.
 - **Public signer.** With real mode on, anyone with the web URL can trigger a
   sign request that you then approve. Approve only your own, and switch
   `USE_REAL_SIGNER` to `false` on the web service when you are done.
-- **Blind signing resets** on a speculos redeploy; re-enable it (step 2).
+- **The "Display raw messages" setting resets** on a speculos redeploy; re-enable
+  it (step 2). To stop redeploys from resetting it, set the speculos service's
+  **Watch Paths** to `infra/speculos/**` so app pushes do not rebuild it.
 - **Free tiers sleep / are resource limited.** Speculos uses CPU; if the
   speculos service is slow or sleeps, the first sign may lag or time out
   (`SPECULOS_SIGN_TIMEOUT_MS`, default 120s). A small paid instance is steadier.

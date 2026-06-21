@@ -99,11 +99,10 @@
               </li>
               <li>
                 <strong>Clear signing on Ledger.</strong> The authorization goes to the Ledger
-                signer. The plan is to drive a Ledger device with the Ledger Device Management Kit
-                and the Ledger Ethereum Signer Kit, so the device shows exactly what is being signed
-                and a press and hold approves it, with the private key staying in hardware. In this
-                build the signature is simulated, so it runs anywhere; the real signing on the
-                Speculos emulator arrives in a later phase.
+                signer. In real-signer mode the full EIP-712 message is streamed to a Ledger device,
+                run on the Speculos emulator with the official Ledger Ethereum app, so the device
+                shows exactly what is being signed and you approve each field, with the private key
+                staying in hardware. By default the signature is simulated, so the demo runs anywhere.
               </li>
               <li><strong>Settle on Base.</strong> The signed authorization goes to a facilitator that submits to Base. In this demo, settlement is simulated.</li>
               <li><strong>Deliver.</strong> With payment settled, Sella returns the forecast. The paid request is complete.</li>
@@ -130,10 +129,10 @@
               for clear signing, where you see exactly what you approve.
             </p>
             <p>
-              It is designed around Ledger's official tools, the Ledger Device Management Kit and the
-              Ledger Ethereum Signer Kit, which sign on a Ledger device run through the Speculos
-              emulator. In this build that signature is simulated so the demo runs anywhere; the real
-              Speculos signing arrives in a later phase.
+              It is built around Ledger's official tooling: the Ledger Ethereum app, driven on a
+              Ledger device run through the Speculos emulator. In real-signer mode the full EIP-712
+              message is streamed to the device so it clear-signs the actual fields; by default that
+              signature is simulated so the demo runs anywhere.
             </p>
             <p class="explain__friendly">
               x402 makes agent payments fast and open, and it pairs nicely with Coinbase's onchain

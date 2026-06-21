@@ -57,13 +57,16 @@ Nothing here is "versus" anything.
 
 The signer is behind one switch (`USE_REAL_SIGNER`). With it off (default), the
 signature is simulated. With it **on**, `POST /api/sign` produces a **real**
-EIP-712 x402 signature on the Ledger **Speculos** emulator by talking to it
-directly over HTTP APDU (`server/ledgerSigner.mjs`), then verifies the signature
-recovers to the Ledger address with `ethers`. `ethers` is an optional dependency
-loaded lazily, so the simulated build and the Render deploy are unaffected. If
-Speculos is not reachable in real mode, the UI shows a friendly error and never
-fakes a signature. See [`docs/speculos.md`](./docs/speculos.md) for exact local
-steps (including enabling Blind signing).
+EIP-712 x402 signature on the Ledger **Speculos** emulator with **clear
+signing**: `server/ledgerSigner.mjs` drives the official Ledger SDK
+(`@ledgerhq/hw-app-eth`) to stream the full EIP-712 message to the device, so it
+displays the actual fields (to, value, nonce, ...) and you approve exactly what
+is signed. The signature is then verified to recover to the Ledger address with
+`ethers`. The Ledger SDK and `ethers` are optional dependencies loaded lazily,
+so the simulated build is unaffected. If Speculos is not reachable in real mode,
+the UI shows a friendly error and never fakes a signature. See
+[`docs/speculos.md`](./docs/speculos.md) for exact local steps (including
+enabling "Display raw messages" for clear signing).
 
 ## Tech
 

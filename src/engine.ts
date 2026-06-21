@@ -305,8 +305,8 @@ async function goTo(id: string): Promise<void> {
       setCardState("pending", approveUrl);
       speakerName.textContent = SPEAKER_LABEL.system;
       dialogueText.textContent = approveUrl
-        ? "Transaction sent to the Ledger for signing. Open the signer and approve it to continue."
-        : "Transaction sent to the Ledger for signing. Approve it on your device now.";
+        ? "Sent to the Ledger for clear signing. Open the signer, review the fields it shows, and approve to continue."
+        : "Sent to the Ledger for clear signing. Review the fields on your device and approve.";
       setActiveSpeaker("system");
       showWorking("Waiting for you to approve on the Ledger…");
     }

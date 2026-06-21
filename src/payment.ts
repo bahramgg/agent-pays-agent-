@@ -141,8 +141,8 @@ export async function signAuthorization(typedData: TypedData): Promise<Signed> {
     body: JSON.stringify({ typedData }),
   });
   if (!res.ok) {
-    // Surface the server's real reason (e.g. cannot reach Speculos, blind
-    // signing off, SW code) instead of a bare status.
+    // Surface the server's real reason (e.g. cannot reach Speculos, "Display
+    // raw messages" off, SW code) instead of a bare status.
     let detail = `sign failed (${res.status})`;
     try {
       const body = await res.json();

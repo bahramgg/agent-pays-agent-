@@ -67,8 +67,8 @@ export function setCardState(
     cardEl.innerHTML = `
       <div class="cs">
         <span class="cs__badge">AWAITING APPROVAL</span>
-        <p class="cs__idle">Transaction sent to the Ledger for signing. Approve it on the
-        device to continue.</p>
+        <p class="cs__idle">Sent to the Ledger for clear signing. Review the fields shown
+        on the device, then approve to continue.</p>
         ${link}
       </div>`;
     return;

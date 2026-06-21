@@ -1,19 +1,37 @@
 // server/ledgerSigner.mjs
-// Real x402 EIP-712 signing on the Ledger Speculos emulator over raw APDU.
+// Real x402 EIP-712 CLEAR signing on the Ledger Speculos emulator.
 //
-// This is the production version of the working reference script sign-eip712.mjs.
-// It talks to Speculos directly over HTTP (no @ledgerhq/hw-app-eth or signer-kit,
-// which have an ESM import bug under Node 24). Loaded by server.js ONLY when
-// USE_REAL_SIGNER=true, so the simulated build never needs ethers or Speculos.
+// Clear signing (not blind): the full EIP-712 typed data is streamed to the
+// Ledger Ethereum app so the DEVICE displays the actual fields (to, value,
+// nonce, ...) and the user approves exactly what is being signed. The private
+// key stays in hardware. This is the opposite of the legacy "hashed" path,
+// which sent only two 32-byte hashes and therefore required the app's
+// "Blind signing" toggle.
 //
-// APDUs (Ledger Ethereum app):
-//   GET ADDRESS:     e0 02 00 00 <Lc> <path>
-//   SIGN EIP-712:    e0 0c 00 00 <Lc> <path> <domainHash 32> <structHash 32>   (P2=00 hashed)
-// Response: v(1) | r(32) | s(32) | SW(9000). v is normalized to 27/28 and the
-// signature is verified to recover to the Ledger address. Requires the app's
-// "Blind signing" setting to be ON. No secrets here: Speculos uses its test seed.
+// We drive the official Ledger SDK (@ledgerhq/hw-app-eth) over a tiny custom
+// transport that POSTs APDUs to Speculos at <SPECULOS_URL>/apdu. The SDK's
+// signEIP712Message does the full struct streaming for us:
+//   E0 1A  EIP712_SEND_STRUCT_DEFINITION     (type schema)
+//   E0 1C  EIP712_SEND_STRUCT_IMPLEMENTATION (field values)
+//   E0 0C 00 01  SIGN (full mode, path only — message already streamed)
+// No 0x1E filtering descriptors are used (those need Ledger-signed CDN data);
+// the app shows the raw fields itself. For that to be allowed, the device's
+// "Display raw messages" (verbose EIP-712) setting must be ON. Blind signing
+// is NOT required.
+//
+// The hw-app-eth ESM build (lib-es) has extensionless imports that Node cannot
+// resolve, so we load its CommonJS build via createRequire. This module is
+// imported by server.js ONLY when USE_REAL_SIGNER=true, so the simulated build
+// never needs ethers, the Ledger SDK, or Speculos. No secrets here: Speculos
+// uses its test seed.
 
+import { createRequire } from "module";
 import { ethers } from "ethers";
+
+const require = createRequire(import.meta.url);
+// CommonJS builds (the ESM "lib-es" builds are broken under Node).
+const Eth = require("@ledgerhq/hw-app-eth").default;
+const Transport = require("@ledgerhq/hw-transport").default;
 
 const SPECULOS_URL = process.env.SPECULOS_URL || "http://localhost:5000";
 const DERIVATION_PATH = process.env.LEDGER_DERIVATION_PATH || "44'/60'/0'/0/0";
@@ -21,14 +39,22 @@ const DERIVATION_PATH = process.env.LEDGER_DERIVATION_PATH || "44'/60'/0'/0/0";
 const ADDRESS_TIMEOUT_MS = Number(process.env.SPECULOS_ADDRESS_TIMEOUT_MS || 10000);
 const SIGN_TIMEOUT_MS = Number(process.env.SPECULOS_SIGN_TIMEOUT_MS || 120000);
 
-// x402 USDC-on-Base domain + types (fixed).
+// x402 USDC-on-Base domain + types (fixed). EIP712Domain is included because
+// the SDK streams the domain struct too.
 const DOMAIN = {
   name: "USD Coin",
   version: "2",
   chainId: 8453,
   verifyingContract: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
 };
+const PRIMARY_TYPE = "TransferWithAuthorization";
 const TYPES = {
+  EIP712Domain: [
+    { name: "name", type: "string" },
+    { name: "version", type: "string" },
+    { name: "chainId", type: "uint256" },
+    { name: "verifyingContract", type: "address" },
+  ],
   TransferWithAuthorization: [
     { name: "from", type: "address" },
     { name: "to", type: "address" },
@@ -38,85 +64,102 @@ const TYPES = {
     { name: "nonce", type: "bytes32" },
   ],
 };
+// ethers verifies against the message types only (no EIP712Domain entry).
+const VERIFY_TYPES = { TransferWithAuthorization: TYPES.TransferWithAuthorization };
+
+/** Minimal Ledger transport that ferries APDUs to Speculos over HTTP. */
+class SpeculosHttpTransport extends Transport {
+  async exchange(apdu) {
+    const hex = apdu.toString("hex");
+    // The SIGN APDU blocks on user approval; everything else is instant.
+    const timeoutMs = hex.startsWith("e00c") ? SIGN_TIMEOUT_MS : ADDRESS_TIMEOUT_MS;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    let res;
+    try {
+      res = await fetch(`${SPECULOS_URL}/apdu`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ data: hex }),
+        signal: controller.signal,
+      });
+    } catch (err) {
+      if (err && err.name === "AbortError") {
+        throw new Error(
+          `No response from the Ledger within ${Math.round(timeoutMs / 1000)}s ` +
+            `(did you approve on the device?).`,
+        );
+      }
+      throw new Error(
+        `Cannot reach the Ledger Speculos emulator at ${SPECULOS_URL}. Is it running? ` +
+          (err && err.message ? err.message : String(err)),
+      );
+    } finally {
+      clearTimeout(timer);
+    }
+    const json = await res.json().catch(() => ({}));
+    const respHex = String(json.data || "");
+    if (!respHex) throw new Error(`Empty APDU response from Speculos: ${JSON.stringify(json)}`);
+    // Base Transport.send checks the trailing status word and throws on non-9000.
+    return Buffer.from(respHex, "hex");
+  }
+}
+
+let ethPromise = null;
+async function getEth() {
+  if (!ethPromise) {
+    ethPromise = (async () => {
+      const transport = new SpeculosHttpTransport();
+      // Null out the CDN config so the SDK never tries to fetch clear-signing
+      // descriptors: we stream the raw struct and let the device display it.
+      return new Eth(transport, "w0w", {
+        cryptoassetsBaseURL: null,
+        pluginBaseURL: null,
+        nftExplorerBaseURL: null,
+        calServiceURL: null,
+      });
+    })();
+  }
+  return ethPromise;
+}
+
+function explainError(err) {
+  const msg = (err && err.message) || String(err);
+  // hw-transport throws TransportStatusError with a numeric statusCode for SWs.
+  const sw = err && err.statusCode ? err.statusCode.toString(16).padStart(4, "0") : null;
+  if (sw === "6985") {
+    return new Error(
+      "Rejected on the device, or clear signing is not enabled. Turn ON " +
+        '"Display raw messages" in the Ethereum app settings (Blind signing is not needed).',
+    );
+  }
+  if (sw === "6a80") {
+    return new Error('Invalid EIP-712 data, or "Display raw messages" is OFF in the Ethereum app settings.');
+  }
+  if (sw) return new Error(`Speculos returned SW=${sw}. ${msg}`);
+  return err instanceof Error ? err : new Error(msg);
+}
 
 let cachedAddress = null;
 
-function encodePath(path) {
-  const parts = path.split("/").map((p) => {
-    const hardened = p.endsWith("'");
-    return (parseInt(p, 10) + (hardened ? 0x80000000 : 0)) >>> 0;
-  });
-  const buf = Buffer.alloc(1 + parts.length * 4);
-  buf[0] = parts.length;
-  parts.forEach((n, i) => buf.writeUInt32BE(n, 1 + i * 4));
-  return buf;
-}
-
-function swMessage(sw) {
-  const hints = {
-    "6985": "denied on device, or Blind signing is OFF (enable it in the app Settings)",
-    "6a80": "invalid data, or Blind signing is OFF",
-    "6d00": "INS not supported by this app version (would need the streaming P2=01 variant)",
-    "6511": "no app open / wrong app",
-    "6e00": "wrong app or CLA",
-  };
-  return `Speculos returned SW=${sw} (${hints[sw] || "error"})`;
-}
-
-async function postApdu(apduHex, timeoutMs) {
-  let res;
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
-  try {
-    res = await fetch(`${SPECULOS_URL}/apdu`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ data: apduHex }),
-      signal: controller.signal,
-    });
-  } catch (err) {
-    if (err && err.name === "AbortError") {
-      throw new Error(
-        `No response from the Ledger within ${Math.round(timeoutMs / 1000)}s ` +
-          `(did you approve on the device?).`,
-      );
-    }
-    throw new Error(
-      `Cannot reach the Ledger Speculos emulator at ${SPECULOS_URL}. Is it running? ` +
-        (err && err.message ? err.message : String(err)),
-    );
-  } finally {
-    clearTimeout(timer);
-  }
-  const json = await res.json().catch(() => ({}));
-  const hex = String(json.data || "").toLowerCase();
-  if (!hex) throw new Error(`Empty APDU response from Speculos: ${JSON.stringify(json)}`);
-  return { body: hex.slice(0, -4), sw: hex.slice(-4) };
-}
-
-/** Read the Ledger address via the GET ADDRESS APDU (no on-device confirmation). */
+/** Read the Ledger address (no on-device confirmation). */
 export async function getLedgerAddress() {
   if (cachedAddress) return cachedAddress;
-  const path = encodePath(DERIVATION_PATH);
-  const apdu = Buffer.concat([Buffer.from([0xe0, 0x02, 0x00, 0x00, path.length]), path]).toString("hex");
-  const { body, sw } = await postApdu(apdu, ADDRESS_TIMEOUT_MS);
-  if (sw !== "9000") throw new Error(swMessage(sw));
-  // Response: 1 byte pubkey len, pubkey, 1 byte addr len, addr (ascii hex chars), [chaincode]
-  const buf = Buffer.from(body, "hex");
-  let off = 0;
-  const pkLen = buf[off];
-  off += 1 + pkLen;
-  const addrLen = buf[off];
-  off += 1;
-  const addrAscii = buf.slice(off, off + addrLen).toString("ascii");
-  cachedAddress = ethers.getAddress("0x" + addrAscii);
-  return cachedAddress;
+  try {
+    const eth = await getEth();
+    const { address } = await eth.getAddress(DERIVATION_PATH, false);
+    cachedAddress = ethers.getAddress(address);
+    return cachedAddress;
+  } catch (err) {
+    throw explainError(err);
+  }
 }
 
 /**
- * Build the x402 transferWithAuthorization typed-data with the given message
- * values (from is forced to the Ledger address, the real signer), sign its
- * EIP-712 hash on Speculos, and return the verified x402 payload.
+ * Build the x402 transferWithAuthorization typed data with the given message
+ * values (from is forced to the Ledger address, the real signer), clear-sign
+ * it on Speculos by streaming the full EIP-712 message, and return the verified
+ * x402 payload.
  */
 export async function signX402Authorization(message) {
   const from = await getLedgerAddress();
@@ -131,22 +174,25 @@ export async function signX402Authorization(message) {
     nonce: message.nonce,
   };
 
-  const domainSeparator = ethers.TypedDataEncoder.hashDomain(DOMAIN);
-  const hashStruct = ethers.TypedDataEncoder.from(TYPES).hashStruct("TransferWithAuthorization", authorization);
+  const typedData = {
+    domain: DOMAIN,
+    types: TYPES,
+    primaryType: PRIMARY_TYPE,
+    message: authorization,
+  };
 
-  const data = Buffer.concat([
-    encodePath(DERIVATION_PATH),
-    Buffer.from(domainSeparator.slice(2), "hex"),
-    Buffer.from(hashStruct.slice(2), "hex"),
-  ]);
-  const apdu = Buffer.concat([Buffer.from([0xe0, 0x0c, 0x00, 0x00, data.length]), data]).toString("hex");
+  let raw;
+  try {
+    const eth = await getEth();
+    // Full clear signing: streams the struct, device shows the fields, user approves.
+    raw = await eth.signEIP712Message(DERIVATION_PATH, typedData);
+  } catch (err) {
+    throw explainError(err);
+  }
 
-  const { body, sw } = await postApdu(apdu, SIGN_TIMEOUT_MS);
-  if (sw !== "9000") throw new Error(swMessage(sw));
-
-  const vRaw = parseInt(body.slice(0, 2), 16);
-  const r = "0x" + body.slice(2, 66);
-  const s = "0x" + body.slice(66, 130);
+  const r = "0x" + raw.r;
+  const s = "0x" + raw.s;
+  const vRaw = typeof raw.v === "number" ? raw.v : parseInt(raw.v, 16);
 
   // Normalize v to 27/28 and confirm the signature recovers to the Ledger address.
   let result = null;
@@ -154,7 +200,7 @@ export async function signX402Authorization(message) {
     if (cand !== 27 && cand !== 28) continue;
     try {
       const sig = ethers.Signature.from({ r, s, v: cand }).serialized;
-      const recovered = ethers.verifyTypedData(DOMAIN, TYPES, authorization, sig);
+      const recovered = ethers.verifyTypedData(DOMAIN, VERIFY_TYPES, authorization, sig);
       if (recovered.toLowerCase() === from.toLowerCase()) {
         result = { signature: sig, v: cand, r, s };
         break;

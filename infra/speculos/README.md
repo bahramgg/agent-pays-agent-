@@ -23,7 +23,7 @@ can build the image, or upload it as part of your deploy.
 cd infra/speculos
 docker build -t apa-speculos .
 docker run --rm -it -p 5000:5000 apa-speculos
-# open http://localhost:5000 -> enable Blind signing once (Settings)
+# open http://localhost:5000 -> enable "Display raw messages" once (Settings)
 ```
 
 Full hosted setup (Railway, two services, browser approval) is in
