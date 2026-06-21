@@ -45,22 +45,24 @@ git push
    - its **private hostname**, shown as `RAILWAY_PRIVATE_DOMAIN`, for example
      `speculos.railway.internal`
 
-## 2. Enable clear signing on the hosted device (one time)
+## 2. Clear signing (nothing to toggle, usually)
 
-We stream the full EIP-712 message so the device shows the actual fields (to,
-value, nonce, ...) and you approve exactly what is signed. That is clear
-signing, not blind signing. The app gates it behind the **"Display raw
-messages"** setting (verbose EIP-712), so turn that on (Blind signing is **not**
-needed).
+We sign the x402 payment with clear signing: the full EIP-712 message is streamed
+to the device and a signed ERC-7730 descriptor from Ledger's registry (Circle
+USDC `transferWithAuthorization` for x402, which covers Base) tells the device to
+show a curated view, **From / To / Amount** (for example "0.01 USDC"), and hide
+the `nonce`, `validAfter` and `validBefore` fields. The web service fetches that
+descriptor from Ledger's CAL service at sign time, so:
 
-Open the speculos **public URL** in a browser. On the emulated device:
+- Keep **Blind signing OFF** on the device. You do not need any toggle: the
+  descriptor makes the device clear-sign the curated fields directly.
+- The **web** service must be able to reach `https://crypto-assets-service.api.ledger.com`
+  (Railway egress is open by default, so this normally just works).
 
-1. Press **right** to "Settings", press **both** to enter.
-2. Open **Display raw messages**, press **both** to set **Enabled**.
-3. Press **right** to "Back", **both** to return to the app home.
-
-Note: a redeploy or restart of the speculos service resets this, so re-enable it
-after any redeploy.
+Fallback: if the CAL service is unreachable, the signer falls back to streaming
+the raw message, which the device only shows when **"Display raw messages"**
+(Settings on the speculos public URL) is enabled. You should not need this if the
+descriptor loads.
 
 ## 3. Add the web service
 
@@ -82,8 +84,8 @@ after any redeploy.
 1. Open the **web** public URL and play to the **Ledger Signer** card.
 2. Press **Hold to sign**. The card switches to **AWAITING APPROVAL** and shows
    an **"Open the signer to approve"** link (that is your speculos public URL).
-3. Open it. The device shows the EIP-712 fields (to, value, nonce, ...): scroll
-   through them with **right**, review, then **both** on "Approve".
+3. Open it. The device shows the curated clear-signing review (From / To /
+   Amount): scroll with **right**, review, then **both** on "Approve".
 4. The real signature appears back on the web app, the card shows **SIGNED ON
    LEDGER** with the signer address, and the wrap line says it was signed on a
    Ledger (Speculos) device.
@@ -96,9 +98,11 @@ after any redeploy.
 - **Public signer.** With real mode on, anyone with the web URL can trigger a
   sign request that you then approve. Approve only your own, and switch
   `USE_REAL_SIGNER` to `false` on the web service when you are done.
-- **The "Display raw messages" setting resets** on a speculos redeploy; re-enable
-  it (step 2). To stop redeploys from resetting it, set the speculos service's
-  **Watch Paths** to `infra/speculos/**` so app pushes do not rebuild it.
+- **Clear signing needs no device toggle**, but the descriptor must load from
+  Ledger's CAL service at sign time, and the speculos app (`ethereum.elf`) must be
+  recent enough to support EIP-712 filtering (v2). To stop app pushes from
+  redeploying speculos, set the speculos service's **Watch Paths** to
+  `infra/speculos/**`.
 - **Free tiers sleep / are resource limited.** Speculos uses CPU; if the
   speculos service is slow or sleeps, the first sign may lag or time out
   (`SPECULOS_SIGN_TIMEOUT_MS`, default 120s). A small paid instance is steadier.

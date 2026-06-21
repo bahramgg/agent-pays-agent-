@@ -75,21 +75,23 @@ Quick reachability check:
 curl -s http://localhost:5000/events >/dev/null && echo "Speculos is reachable"
 ```
 
-## 4. Enable clear signing (required, one time)
+## 4. Clear signing (no device toggle needed)
 
-We stream the full EIP-712 message to the app, so the device shows the actual
-fields (to, value, nonce, ...) and you approve exactly what is signed. That is
-clear signing. The app allows it when **"Display raw messages"** (verbose
-EIP-712) is on. Blind signing is **not** needed.
+We sign with clear signing: the full EIP-712 message is streamed to the app and a
+signed ERC-7730 descriptor from Ledger's registry (Circle USDC
+`transferWithAuthorization` for x402, covering Base) tells the device to show a
+curated view, **From / To / Amount** (for example "0.01 USDC"), and hide the
+`nonce`, `validAfter` and `validBefore` fields. The signer fetches that descriptor
+from Ledger's CAL service (`https://crypto-assets-service.api.ledger.com`) at
+sign time, so the machine running the server needs outbound access to it.
 
-In the Speculos web UI at http://localhost:5000:
+With the descriptor applied you do not need any device setting; keep **Blind
+signing OFF**. When you sign, scroll through the curated fields with **right**,
+then **both** on "Approve".
 
-1. From the Ethereum app home, press **right** to "Settings", press **both** to enter.
-2. Open **Display raw messages** and press **both** to set it to **Enabled**.
-3. Press **right** to "Back", **both** to return to the app home.
-
-If it is off you will get `SW=6985` or `6a80` (the server reports it). When you
-sign, scroll through the fields with **right**, then **both** on "Approve".
+Fallback: if the CAL service is unreachable, the signer streams the raw message
+instead, which the app only displays when **"Display raw messages"** is enabled
+(Settings), and you may see `SW=6a80` until it is on.
 
 ## 5. Start the app in real-signer mode (second terminal)
 

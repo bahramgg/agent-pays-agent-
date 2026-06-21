@@ -10,14 +10,19 @@
 //
 // We drive the official Ledger SDK (@ledgerhq/hw-app-eth) over a tiny custom
 // transport that POSTs APDUs to Speculos at <SPECULOS_URL>/apdu. The SDK's
-// signEIP712Message does the full struct streaming for us:
+// signEIP712Message does the full message streaming for us:
 //   E0 1A  EIP712_SEND_STRUCT_DEFINITION     (type schema)
 //   E0 1C  EIP712_SEND_STRUCT_IMPLEMENTATION (field values)
+//   E0 1E  EIP712_SEND_FILTERING             (ERC-7730 clear-signing descriptor)
 //   E0 0C 00 01  SIGN (full mode, path only — message already streamed)
-// No 0x1E filtering descriptors are used (those need Ledger-signed CDN data);
-// the app shows the raw fields itself. For that to be allowed, the device's
-// "Display raw messages" (verbose EIP-712) setting must be ON. Blind signing
-// is NOT required.
+// The SDK fetches the signed ERC-7730 filtering descriptor from Ledger's CAL
+// service. Ledger's registry has one for Circle USDC transferWithAuthorization
+// (x402) on Base, so the device shows a curated view (From / To / Amount, e.g.
+// "0.01 USDC") and hides nonce / validAfter / validBefore. That is true clear
+// signing: no "blind signing" toggle, no raw-field dump. The web service must
+// be able to reach the CAL service for the descriptor; otherwise the SDK falls
+// back to streaming the raw struct (which needs the device's "Display raw
+// messages" setting). Blind signing is never required.
 //
 // The hw-app-eth ESM build (lib-es) has extensionless imports that Node cannot
 // resolve, so we load its CommonJS build via createRequire. This module is
@@ -110,14 +115,15 @@ async function getEth() {
   if (!ethPromise) {
     ethPromise = (async () => {
       const transport = new SpeculosHttpTransport();
-      // Null out the CDN config so the SDK never tries to fetch clear-signing
-      // descriptors: we stream the raw struct and let the device display it.
-      return new Eth(transport, "w0w", {
-        cryptoassetsBaseURL: null,
-        pluginBaseURL: null,
-        nftExplorerBaseURL: null,
-        calServiceURL: null,
-      });
+      // Default loadConfig keeps the Ledger CAL service URL, so the SDK fetches
+      // the signed ERC-7730 clear-signing descriptor for this message. Ledger's
+      // registry has one for Circle USDC transferWithAuthorization (x402) on
+      // Base: it shows From / To / Amount (as "0.01 USDC") and hides nonce,
+      // validAfter and validBefore. With it applied the device clear-signs the
+      // curated fields (no "blind signing ahead", no raw-field dump). If the
+      // CAL service is unreachable the SDK falls back to streaming the raw
+      // struct, which then needs the device's "Display raw messages" setting.
+      return new Eth(transport);
     })();
   }
   return ethPromise;
