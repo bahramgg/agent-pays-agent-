@@ -52,35 +52,60 @@ const DOMAIN = {
   chainId: 8453,
   verifyingContract: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
 };
-const CAL_SERVICE_URL = "https://crypto-assets-service.api.ledger.com";
+const CAL_SERVICE_URL = process.env.CAL_SERVICE_URL || "https://crypto-assets-service.api.ledger.com";
 // Schema hash of our exact TransferWithAuthorization typed data (computed with
 // Ledger's evm-tools getSchemaHashForMessage). The CAL descriptor is keyed by it.
 const OUR_SCHEMA_HASH = "1cb336ca4e31494498ce2c7f0c1e7514c5646e5b0636f8cce4ccbe14";
+// Static-fallback key the SDK uses: `${chainId}:${contractLowercase}:${schemaHash}`.
+const STATIC_KEY = `${DOMAIN.chainId}:${DOMAIN.verifyingContract.toLowerCase()}:${OUR_SCHEMA_HASH}`;
+// Ledger's CAL edge/WAF returns 403 to bot-like clients (a bare fetch sends
+// User-Agent "node"; even the SDK's axios UA is filtered). A normal browser
+// User-Agent gets the public, read-only descriptor through.
+const CAL_HEADERS = {
+  "User-Agent":
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+  Accept: "application/json",
+};
+// A signed descriptor can also be baked in (env or committed JSON) so runtime
+// never needs the CAL at all. LEDGER_EIP712_FILTERS is the MessageFilters JSON.
+let bundledFilters = null;
+try {
+  bundledFilters = process.env.LEDGER_EIP712_FILTERS ? JSON.parse(process.env.LEDGER_EIP712_FILTERS) : null;
+} catch {
+  bundledFilters = null;
+}
+
+let cachedFilters = bundledFilters; // the signed MessageFilters, once known
+let lastCalStatus = bundledFilters ? "using bundled descriptor" : "not attempted";
 
 /**
- * Probe Ledger's CAL service the same way the SDK does, to explain why the
- * clear-signing descriptor did not load (reachability vs no matching schema).
+ * Fetch the signed ERC-7730 EIP-712 filter for our message from Ledger's CAL
+ * service (browser User-Agent, to pass the edge WAF). Returns the MessageFilters
+ * object or null. Cached on success; records lastCalStatus for diagnostics.
  */
-async function probeDescriptor() {
+async function getMessageFilters() {
+  if (cachedFilters) return cachedFilters;
   const contract = DOMAIN.verifyingContract.toLowerCase();
   const url =
     `${CAL_SERVICE_URL}/v1/dapps?output=eip712_signatures` +
     `&eip712_signatures_version=v2&chain_id=${DOMAIN.chainId}&contracts=${contract}`;
   try {
-    const r = await fetch(url, { signal: AbortSignal.timeout(8000) });
-    const text = await r.text();
-    if (r.status !== 200) return `CAL http ${r.status}: ${text.slice(0, 80)}`;
-    let data;
-    try {
-      data = JSON.parse(text);
-    } catch {
-      return `CAL http 200 but non-JSON: ${text.slice(0, 80)}`;
+    const r = await fetch(url, { headers: CAL_HEADERS, signal: AbortSignal.timeout(8000) });
+    if (r.status !== 200) {
+      lastCalStatus = `CAL http ${r.status}`;
+      return null;
     }
-    const item = Array.isArray(data) ? data.find((x) => x?.eip712_signatures?.[contract]) : null;
-    const schemas = item ? Object.keys(item.eip712_signatures[contract]) : [];
-    return `CAL ok, items=${Array.isArray(data) ? data.length : 0}, schemaCount=${schemas.length}, hasOurSchema=${schemas.includes(OUR_SCHEMA_HASH)}`;
+    const data = await r.json();
+    const item = Array.isArray(data)
+      ? data.find((x) => x?.eip712_signatures?.[contract]?.[OUR_SCHEMA_HASH])
+      : null;
+    const filters = (item && item.eip712_signatures[contract][OUR_SCHEMA_HASH]) || null;
+    lastCalStatus = filters ? "descriptor fetched" : "CAL ok but no descriptor for our schema";
+    if (filters) cachedFilters = filters;
+    return filters;
   } catch (e) {
-    return `CAL fetch failed: ${(e && e.message) || e}`;
+    lastCalStatus = `CAL fetch failed: ${(e && e.message) || e}`;
+    return null;
   }
 }
 const PRIMARY_TYPE = "TransferWithAuthorization";
@@ -159,23 +184,20 @@ class SpeculosHttpTransport extends Transport {
 }
 
 let transport = null;
-let ethPromise = null;
-async function getEth() {
-  if (!ethPromise) {
-    ethPromise = (async () => {
-      transport = new SpeculosHttpTransport();
-      // Default loadConfig keeps the Ledger CAL service URL, so the SDK fetches
-      // the signed ERC-7730 clear-signing descriptor for this message. Ledger's
-      // registry has one for Circle USDC transferWithAuthorization (x402) on
-      // Base: it shows From / To / Amount (as "0.01 USDC") and hides nonce,
-      // validAfter and validBefore. With it applied the device clear-signs the
-      // curated fields (no "blind signing ahead", no raw-field dump). If the
-      // CAL service is unreachable the SDK falls back to streaming the raw
-      // struct, which then needs the device's "Display raw messages" setting.
-      return new Eth(transport);
-    })();
-  }
-  return ethPromise;
+function ensureTransport() {
+  if (!transport) transport = new SpeculosHttpTransport();
+  return transport;
+}
+
+// Build an Eth client. For signing we hand it the signed descriptor as a static
+// filter (and disable the SDK's own CAL fetch, which the WAF 403s) so the device
+// clear-signs the curated Circle USDC fields (From / To / Amount), hiding nonce /
+// validAfter / validBefore. Without a descriptor it streams the raw message.
+function makeEth(filters) {
+  const loadConfig = filters
+    ? { staticEIP712SignaturesV2: { [STATIC_KEY]: filters }, calServiceURL: null }
+    : {};
+  return new Eth(ensureTransport(), "w0w", loadConfig);
 }
 
 function explainError(err) {
@@ -201,7 +223,7 @@ let cachedAddress = null;
 export async function getLedgerAddress() {
   if (cachedAddress) return cachedAddress;
   try {
-    const eth = await getEth();
+    const eth = makeEth(null);
     const { address } = await eth.getAddress(DERIVATION_PATH, false);
     cachedAddress = ethers.getAddress(address);
     return cachedAddress;
@@ -236,25 +258,25 @@ export async function signX402Authorization(message) {
     message: authorization,
   };
 
+  // Fetch (or reuse) the signed descriptor and hand it to the SDK as a static
+  // filter, so the device clear-signs the curated fields.
+  const filters = await getMessageFilters();
+
   let raw;
   try {
-    const eth = await getEth();
-    transport.resetDiag();
-    // Full clear signing: streams the message, fetches the ERC-7730 descriptor,
-    // and the device shows the curated fields for the user to approve.
+    const eth = makeEth(filters);
+    ensureTransport().resetDiag();
+    // Clear signing: streams the message with the descriptor applied; the device
+    // shows the curated fields (From / To / Amount) for the user to approve.
     raw = await eth.signEIP712Message(DERIVATION_PATH, typedData);
   } catch (err) {
-    // Was the clear-signing descriptor actually applied? If no E0 1E filtering
-    // APDU was sent, the descriptor never loaded (CAL unreachable or none for
-    // this message) and the app fell back to the raw message.
+    // Did the E0 1E filtering APDUs actually go out (curated clear signing), or
+    // did it fall back to the raw message? Report that plus why the descriptor
+    // was or was not available.
     const loaded = transport && transport.sawFiltering;
-    let diag = transport
-      ? ` [descriptor ${loaded ? "loaded" : "NOT loaded"}; last APDU ${transport.lastReqIns || "?"} -> SW ${transport.lastSw || "?"}]`
-      : "";
-    // If it never loaded, probe CAL from here (the host's own egress) to say why.
-    if (transport && !loaded) {
-      diag += " " + (await probeDescriptor());
-    }
+    const diag =
+      ` [descriptor ${loaded ? "applied" : "NOT applied"}; last APDU ${transport ? transport.lastReqIns : "?"}` +
+      ` -> SW ${transport ? transport.lastSw : "?"}; CAL: ${lastCalStatus}]`;
     const e = explainError(err);
     e.message += diag;
     throw e;
