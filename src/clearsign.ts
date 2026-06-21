@@ -59,11 +59,17 @@ export function setCardState(
   signerShort?: string,
 ): void {
   if (state === "pending") {
+    // `detail` may carry the public Speculos URL to approve from a browser.
+    const link =
+      detail && /^https?:\/\//.test(detail)
+        ? `<p class="cs__lead"><a class="cs__approve-link" href="${esc(detail)}" target="_blank" rel="noopener">Open the signer to approve →</a></p>`
+        : "";
     cardEl.innerHTML = `
       <div class="cs">
         <span class="cs__badge">AWAITING APPROVAL</span>
-        <p class="cs__idle">Transaction sent to the Ledger for signing. Approve it on your
+        <p class="cs__idle">Transaction sent to the Ledger for signing. Approve it on the
         device to continue.</p>
+        ${link}
       </div>`;
     return;
   }

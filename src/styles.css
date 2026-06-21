@@ -312,6 +312,13 @@ body {
   color: var(--ink-soft);
   margin: 0;
 }
+.cs__approve-link {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: clamp(12px, 2.8vw, 14px);
+  color: var(--base-blue);
+  text-decoration: underline;
+}
 .cs__idle {
   font-family: var(--font-text);
   font-size: clamp(13px, 2.8vw, 15px);

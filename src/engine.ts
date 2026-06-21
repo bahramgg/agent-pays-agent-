@@ -301,12 +301,14 @@ async function goTo(id: string): Promise<void> {
     // Real mode goes to a device: show that the transaction was sent for signing
     // and that the player must approve it on their Ledger (Speculos).
     if (ctx.config.useRealSigner) {
-      setCardState("pending");
+      const approveUrl = ctx.config.speculosPublicUrl || "";
+      setCardState("pending", approveUrl);
       speakerName.textContent = SPEAKER_LABEL.system;
-      dialogueText.textContent =
-        "Transaction sent to the Ledger for signing. Approve it on your device now.";
+      dialogueText.textContent = approveUrl
+        ? "Transaction sent to the Ledger for signing. Open the signer and approve it to continue."
+        : "Transaction sent to the Ledger for signing. Approve it on your device now.";
       setActiveSpeaker("system");
-      showWorking("Waiting for you to approve on the Ledger device…");
+      showWorking("Waiting for you to approve on the Ledger…");
     }
 
     let signed;

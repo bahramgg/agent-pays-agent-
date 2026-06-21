@@ -110,7 +110,13 @@ function simulatedSign(typedData) {
 // --- API router ------------------------------------------------------------
 async function handleApi(req, res, url) {
   if (url === "/api/config" && req.method === "GET") {
-    return sendJson(res, 200, { useRealSigner: USE_REAL_SIGNER, network: NETWORK });
+    return sendJson(res, 200, {
+      useRealSigner: USE_REAL_SIGNER,
+      network: NETWORK,
+      // Public URL of the signer (Speculos web UI) so the user can approve from
+      // a browser. Empty unless set (e.g. on the hosted Railway deploy).
+      speculosPublicUrl: process.env.SPECULOS_PUBLIC_URL || "",
+    });
   }
 
   if (url === "/api/weather" && req.method === "GET") {

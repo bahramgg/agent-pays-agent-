@@ -133,6 +133,11 @@ curl -s -X POST http://localhost:3000/api/sign -H 'Content-Type: application/jso
 (The server forces `from` to the real Ledger address, so the signed
 authorization is a valid x402 message.)
 
+> Want it fully hosted with no local machine at all (the emulator runs in the
+> cloud and you approve from your browser)? See
+> [`docs/railway.md`](./railway.md). The tunnel approach below keeps Speculos on
+> your machine.
+
 ## 7. Real signing on the deployed Render site (via a tunnel)
 
 You can make the **public Render site** sign for real on your own Speculos. The

@@ -66,6 +66,8 @@ export interface Forecast {
 export interface Config {
   useRealSigner: boolean;
   network: string;
+  /** Public Speculos web UI URL, so the user can approve from a browser. */
+  speculosPublicUrl?: string;
 }
 
 export async function fetchConfig(): Promise<Config> {
@@ -75,7 +77,7 @@ export async function fetchConfig(): Promise<Config> {
   } catch {
     /* fall through to default */
   }
-  return { useRealSigner: false, network: "base" };
+  return { useRealSigner: false, network: "base", speculosPublicUrl: "" };
 }
 
 /** Make the unpaid request and read the REAL 402 terms. */
