@@ -133,14 +133,27 @@ export interface Signed {
   signer?: string;
 }
 
-/** Ask the server to sign (simulated now, Ledger Speculos in Phase 4). */
+/** Ask the server to sign (simulated, or real on Speculos when enabled). */
 export async function signAuthorization(typedData: TypedData): Promise<Signed> {
   const res = await fetch("/api/sign", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ typedData }),
   });
-  if (!res.ok) throw new Error(`sign failed: ${res.status}`);
+  if (!res.ok) {
+    // Surface the server's real reason (e.g. cannot reach Speculos, blind
+    // signing off, SW code) instead of a bare status.
+    let detail = `sign failed (${res.status})`;
+    try {
+      const body = await res.json();
+      if (body && (body.detail || body.error)) {
+        detail = String(body.detail || body.error);
+      }
+    } catch {
+      /* keep the status fallback */
+    }
+    throw new Error(detail);
+  }
   return (await res.json()) as Signed;
 }
 
