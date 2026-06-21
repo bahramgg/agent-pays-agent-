@@ -52,6 +52,37 @@ const DOMAIN = {
   chainId: 8453,
   verifyingContract: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
 };
+const CAL_SERVICE_URL = "https://crypto-assets-service.api.ledger.com";
+// Schema hash of our exact TransferWithAuthorization typed data (computed with
+// Ledger's evm-tools getSchemaHashForMessage). The CAL descriptor is keyed by it.
+const OUR_SCHEMA_HASH = "1cb336ca4e31494498ce2c7f0c1e7514c5646e5b0636f8cce4ccbe14";
+
+/**
+ * Probe Ledger's CAL service the same way the SDK does, to explain why the
+ * clear-signing descriptor did not load (reachability vs no matching schema).
+ */
+async function probeDescriptor() {
+  const contract = DOMAIN.verifyingContract.toLowerCase();
+  const url =
+    `${CAL_SERVICE_URL}/v1/dapps?output=eip712_signatures` +
+    `&eip712_signatures_version=v2&chain_id=${DOMAIN.chainId}&contracts=${contract}`;
+  try {
+    const r = await fetch(url, { signal: AbortSignal.timeout(8000) });
+    const text = await r.text();
+    if (r.status !== 200) return `CAL http ${r.status}: ${text.slice(0, 80)}`;
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch {
+      return `CAL http 200 but non-JSON: ${text.slice(0, 80)}`;
+    }
+    const item = Array.isArray(data) ? data.find((x) => x?.eip712_signatures?.[contract]) : null;
+    const schemas = item ? Object.keys(item.eip712_signatures[contract]) : [];
+    return `CAL ok, items=${Array.isArray(data) ? data.length : 0}, schemaCount=${schemas.length}, hasOurSchema=${schemas.includes(OUR_SCHEMA_HASH)}`;
+  } catch (e) {
+    return `CAL fetch failed: ${(e && e.message) || e}`;
+  }
+}
 const PRIMARY_TYPE = "TransferWithAuthorization";
 const TYPES = {
   EIP712Domain: [
@@ -216,9 +247,14 @@ export async function signX402Authorization(message) {
     // Was the clear-signing descriptor actually applied? If no E0 1E filtering
     // APDU was sent, the descriptor never loaded (CAL unreachable or none for
     // this message) and the app fell back to the raw message.
-    const diag = transport
-      ? ` [descriptor ${transport.sawFiltering ? "loaded" : "NOT loaded"}; last APDU ${transport.lastReqIns || "?"} -> SW ${transport.lastSw || "?"}]`
+    const loaded = transport && transport.sawFiltering;
+    let diag = transport
+      ? ` [descriptor ${loaded ? "loaded" : "NOT loaded"}; last APDU ${transport.lastReqIns || "?"} -> SW ${transport.lastSw || "?"}]`
       : "";
+    // If it never loaded, probe CAL from here (the host's own egress) to say why.
+    if (transport && !loaded) {
+      diag += " " + (await probeDescriptor());
+    }
     const e = explainError(err);
     e.message += diag;
     throw e;
