@@ -54,10 +54,19 @@ function fieldsHtml(d: SignData): string {
 
 /** Idle / terminal states of the card. */
 export function setCardState(
-  state: "idle" | "signed" | "cancelled" | "error",
+  state: "idle" | "pending" | "signed" | "cancelled" | "error",
   detail?: string,
   signerShort?: string,
 ): void {
+  if (state === "pending") {
+    cardEl.innerHTML = `
+      <div class="cs">
+        <span class="cs__badge">AWAITING APPROVAL</span>
+        <p class="cs__idle">Transaction sent to the Ledger for signing. Approve it on your
+        device to continue.</p>
+      </div>`;
+    return;
+  }
   if (state === "error") {
     cardEl.innerHTML = `
       <div class="cs">

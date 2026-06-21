@@ -298,6 +298,17 @@ async function goTo(id: string): Promise<void> {
       return;
     }
 
+    // Real mode goes to a device: show that the transaction was sent for signing
+    // and that the player must approve it on their Ledger (Speculos).
+    if (ctx.config.useRealSigner) {
+      setCardState("pending");
+      speakerName.textContent = SPEAKER_LABEL.system;
+      dialogueText.textContent =
+        "Transaction sent to the Ledger for signing. Approve it on your device now.";
+      setActiveSpeaker("system");
+      showWorking("Waiting for you to approve on the Ledger device…");
+    }
+
     let signed;
     try {
       signed = await signAuthorization(ctx.typedData!);

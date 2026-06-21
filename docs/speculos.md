@@ -133,21 +133,69 @@ curl -s -X POST http://localhost:3000/api/sign -H 'Content-Type: application/jso
 (The server forces `from` to the real Ledger address, so the signed
 authorization is a valid x402 message.)
 
-## 7. Back to simulated mode
+## 7. Real signing on the deployed Render site (via a tunnel)
 
-Start without the env var (the default), exactly as before:
+You can make the **public Render site** sign for real on your own Speculos. The
+Render server cannot reach `localhost`, so you expose your local Speculos with a
+tunnel and point Render at it. Speculos still runs on your machine and you still
+press its buttons to approve, so you are the one signing.
+
+1. Keep Speculos running locally with Blind signing enabled (sections 3 and 4).
+
+2. Start a tunnel to port 5000 and copy the public HTTPS URL it prints:
+
+   ```bash
+   # Cloudflare (no signup):
+   cloudflared tunnel --url http://localhost:5000
+   # or ngrok:
+   ngrok http 5000
+   ```
+
+   You get something like `https://abc-123.trycloudflare.com`.
+
+3. In the Render dashboard, open your service, go to **Environment**, and set:
+
+   - `USE_REAL_SIGNER` = `true`
+   - `SPECULOS_URL` = the tunnel URL from step 2 (no trailing slash)
+
+   Save. Render redeploys automatically.
+
+4. Open your Render site, play to the **Ledger Signer** card, and press **Hold
+   to sign**. The card now says the transaction was sent to the Ledger and is
+   **awaiting approval**. Switch to your local Speculos web UI at
+   http://localhost:5000, press **right** to "Sign message" / "Approve", then
+   press **both**. The real signature appears on the Render site.
+
+**Important:**
+
+- This only works while your Speculos and the tunnel are running on your machine.
+  Close either one and the site cleanly falls back to a friendly error (it never
+  fakes a signature).
+- With the flag on, the sign endpoint is public: anyone visiting can trigger a
+  sign request that **you** must approve on your device. It is the Speculos
+  **test seed**, so there are no real funds, and settlement stays simulated.
+  Only approve requests you started, and turn the flag off when you are done.
+- The server waits up to `SPECULOS_SIGN_TIMEOUT_MS` (default 120s) for your
+  approval, then returns a clean error.
+
+## 8. Back to simulated mode
+
+Locally, start without the env var (the default), exactly as before:
 
 ```bash
 npm start
 ```
 
-Render uses this default, so the deploy keeps using the simulated signer and is
-unaffected by anything on this page.
+On Render, set `USE_REAL_SIGNER` back to `false` (or remove it) to return the
+deploy to the simulated signer. With no flag set, Render uses the simulated
+default and is unaffected by anything on this page.
 
 ## Environment variables
 
 | Variable                  | Default                 | Meaning                                  |
 | ------------------------- | ----------------------- | ---------------------------------------- |
-| `USE_REAL_SIGNER`         | `false`                 | `true` signs on Speculos; else simulated |
-| `SPECULOS_URL`            | `http://localhost:5000` | Where Speculos is listening              |
-| `LEDGER_DERIVATION_PATH`  | `44'/60'/0'/0/0`        | Derivation path used for signing         |
+| `USE_REAL_SIGNER`          | `false`                 | `true` signs on Speculos; else simulated  |
+| `SPECULOS_URL`             | `http://localhost:5000` | Where Speculos is listening (or a tunnel) |
+| `LEDGER_DERIVATION_PATH`   | `44'/60'/0'/0/0`        | Derivation path used for signing          |
+| `SPECULOS_SIGN_TIMEOUT_MS` | `120000`                | How long to wait for on-device approval   |
+| `SPECULOS_ADDRESS_TIMEOUT_MS` | `10000`              | Timeout for the (instant) address read    |

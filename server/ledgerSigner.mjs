@@ -17,6 +17,9 @@ import { ethers } from "ethers";
 
 const SPECULOS_URL = process.env.SPECULOS_URL || "http://localhost:5000";
 const DERIVATION_PATH = process.env.LEDGER_DERIVATION_PATH || "44'/60'/0'/0/0";
+// Address read is instant; signing waits for the user to approve on the device.
+const ADDRESS_TIMEOUT_MS = Number(process.env.SPECULOS_ADDRESS_TIMEOUT_MS || 10000);
+const SIGN_TIMEOUT_MS = Number(process.env.SPECULOS_SIGN_TIMEOUT_MS || 120000);
 
 // x402 USDC-on-Base domain + types (fixed).
 const DOMAIN = {
@@ -60,19 +63,30 @@ function swMessage(sw) {
   return `Speculos returned SW=${sw} (${hints[sw] || "error"})`;
 }
 
-async function postApdu(apduHex) {
+async function postApdu(apduHex, timeoutMs) {
   let res;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
     res = await fetch(`${SPECULOS_URL}/apdu`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ data: apduHex }),
+      signal: controller.signal,
     });
   } catch (err) {
+    if (err && err.name === "AbortError") {
+      throw new Error(
+        `No response from the Ledger within ${Math.round(timeoutMs / 1000)}s ` +
+          `(did you approve on the device?).`,
+      );
+    }
     throw new Error(
       `Cannot reach the Ledger Speculos emulator at ${SPECULOS_URL}. Is it running? ` +
         (err && err.message ? err.message : String(err)),
     );
+  } finally {
+    clearTimeout(timer);
   }
   const json = await res.json().catch(() => ({}));
   const hex = String(json.data || "").toLowerCase();
@@ -85,7 +99,7 @@ export async function getLedgerAddress() {
   if (cachedAddress) return cachedAddress;
   const path = encodePath(DERIVATION_PATH);
   const apdu = Buffer.concat([Buffer.from([0xe0, 0x02, 0x00, 0x00, path.length]), path]).toString("hex");
-  const { body, sw } = await postApdu(apdu);
+  const { body, sw } = await postApdu(apdu, ADDRESS_TIMEOUT_MS);
   if (sw !== "9000") throw new Error(swMessage(sw));
   // Response: 1 byte pubkey len, pubkey, 1 byte addr len, addr (ascii hex chars), [chaincode]
   const buf = Buffer.from(body, "hex");
@@ -125,7 +139,7 @@ export async function signX402Authorization(message) {
   ]);
   const apdu = Buffer.concat([Buffer.from([0xe0, 0x0c, 0x00, 0x00, data.length]), data]).toString("hex");
 
-  const { body, sw } = await postApdu(apdu);
+  const { body, sw } = await postApdu(apdu, SIGN_TIMEOUT_MS);
   if (sw !== "9000") throw new Error(swMessage(sw));
 
   const vRaw = parseInt(body.slice(0, 2), 16);
