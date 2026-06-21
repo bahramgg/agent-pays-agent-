@@ -65,12 +65,14 @@ Agent Stack recommends): `server/ledgerSigner.mjs` uses
 (`signTypedData`) + `@ledgerhq/context-module` (clear-signing descriptor). The
 device shows the curated Circle USDC fields (From / To / Amount) from the signed
 ERC-7730 descriptor and you approve exactly what is signed; the signature is then
-verified to recover to the Ledger address with `ethers`. The descriptor comes
-from a CAL mirror served by this server (`/cal/v1/dapps`) so the deploy never
-depends on Ledger's CAL edge. The Ledger SDK and `ethers` are optional
-dependencies loaded lazily, so the simulated build is unaffected. If Speculos is
-not reachable in real mode, the UI shows a friendly error and never fakes a
-signature. See [`docs/speculos.md`](./docs/speculos.md) for the local steps.
+verified to recover to the Ledger address with `ethers`. The Context Module fetches
+that descriptor dynamically from Ledger's CAL service, so there is nothing to
+bundle and no blind signing. Run the signer from a normal (non-datacenter) network
+so the CAL is reachable; Ledger's CAL edge blocks datacenter IPs, so a local run is
+the simplest way to get fully dynamic clear signing. The Ledger SDK and `ethers`
+are optional dependencies loaded lazily, so the simulated build is unaffected. If
+Speculos is not reachable in real mode, the UI shows a friendly error and never
+fakes a signature. See [`docs/speculos.md`](./docs/speculos.md) for the local steps.
 
 ## Tech
 

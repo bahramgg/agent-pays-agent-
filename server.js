@@ -10,7 +10,7 @@
 // Flip USE_REAL_SIGNER=true (Phase 4) to route signing to the Ledger Speculos
 // emulator instead.
 import { createHash, randomBytes } from "node:crypto";
-import { createReadStream, existsSync, readFileSync, statSync } from "node:fs";
+import { createReadStream, existsSync, statSync } from "node:fs";
 import { createServer } from "node:http";
 import { dirname, extname, join, normalize, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -31,18 +31,6 @@ const SELLA_PAYTO = "0x9aB7…SELLA"; // fake seller address (display value)
 const SELLA_PAYTO_FULL = "0x9aB7c4D2e1F0a3B5C6d7E8f90A1b2C3d4E5f6A7b";
 const AMOUNT = "10000"; // 0.01 USDC (6 decimals)
 const AMOUNT_HUMAN = "0.01 USDC";
-
-// CAL mirror: the DMK Context Module fetches the clear-signing descriptor from
-// `${CAL_MIRROR_URL}/dapps`. Ledger's real CAL WAF-403s datacenter IPs, so we
-// serve the committed, Ledger-signed descriptor from this server instead (see
-// server/ledgerSigner.mjs setCalConfig). The file is the raw CAL response for
-// `output=descriptors_eip712` (an array). Empty array if not provided yet.
-let CAL_DESCRIPTORS = "[]";
-try {
-  CAL_DESCRIPTORS = readFileSync(join(root, "server", "eip712-usdc-base-descriptors.json"), "utf8");
-} catch {
-  CAL_DESCRIPTORS = "[]";
-}
 
 const MIME = {
   ".html": "text/html; charset=utf-8",
@@ -227,13 +215,6 @@ const server = createServer((req, res) => {
   const urlPath = decodeURIComponent((req.url || "/").split("?")[0]);
   if (urlPath.startsWith("/api/")) {
     handleApi(req, res, urlPath).catch(() => sendJson(res, 500, { error: "server error" }));
-    return;
-  }
-  // CAL mirror for the DMK Context Module: serve the committed descriptor for
-  // any /cal/.../dapps request (query is ignored; we serve our one descriptor).
-  if (urlPath.startsWith("/cal/") && urlPath.endsWith("/dapps")) {
-    res.writeHead(200, { "Content-Type": "application/json" });
-    res.end(CAL_DESCRIPTORS);
     return;
   }
   serveStatic(req, res, urlPath);

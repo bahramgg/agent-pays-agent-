@@ -13,11 +13,12 @@
 // so the DEVICE displays the curated fields (From / To / Amount) and the user
 // approves exactly what is signed. The private key stays in hardware.
 //
-// Descriptor source: Ledger's CAL service WAF-403s datacenter IPs (e.g. Railway),
-// so we point the Context Module's CAL at a mirror served by our OWN server
-// (CAL_MIRROR_URL -> server.js /cal/v1/dapps), which returns the committed,
-// Ledger-signed descriptor. That is the documented setCalConfig customization;
-// the descriptor stays Ledger-signed and the device verifies it.
+// Descriptor source: the Context Module fetches the signed ERC-7730 descriptor
+// from Ledger's CAL service (the default, documented behavior). Run the signer
+// from a normal (non-datacenter) network so the CAL is reachable; Ledger's CAL
+// edge WAF-403s datacenter IPs (e.g. Railway). For a hosted deploy you can point
+// the CAL at your own mirror by setting CAL_MIRROR_URL, but by default we use
+// Ledger's real CAL so clear signing is fully dynamic with nothing to bundle.
 //
 // The DMK ESM build has directory imports Node cannot resolve, so we load the
 // CommonJS builds via createRequire. This module is imported by server.js ONLY
@@ -36,9 +37,8 @@ const { firstValueFrom, timeout } = require("rxjs");
 const SPECULOS_URL = process.env.SPECULOS_URL || "http://localhost:5000";
 const DERIVATION_PATH = process.env.LEDGER_DERIVATION_PATH || "44'/60'/0'/0/0";
 const DISCOVER_TIMEOUT_MS = Number(process.env.SPECULOS_ADDRESS_TIMEOUT_MS || 12000);
-// CAL mirror on our own server, so DMK never calls Ledger's WAF-blocked CAL.
-const CAL_MIRROR_URL =
-  process.env.CAL_MIRROR_URL || `http://127.0.0.1:${process.env.PORT || 3000}/cal/v1`;
+// Optional CAL mirror for hosted deploys; unset = use Ledger's real CAL (default).
+const CAL_MIRROR_URL = process.env.CAL_MIRROR_URL || "";
 
 // x402 USDC-on-Base typed data (fixed).
 const DOMAIN = {
@@ -81,12 +81,16 @@ async function getSigner() {
       const device = await firstValueFrom(dmk.startDiscovering({}).pipe(timeout(DISCOVER_TIMEOUT_MS)));
       sessionId = await dmk.connect({ device });
 
-      // Context Module pointed at our own CAL mirror (the documented setCalConfig
-      // customization) so the descriptor comes from us, not Ledger's CAL edge.
-      const contextModule = new ContextModuleBuilder({ originToken: "agent-pays-agent" })
-        .setChain(ContextModuleChainID.Ethereum)
-        .setCalConfig({ url: CAL_MIRROR_URL, mode: "prod", branch: "main" })
-        .build();
+      // Context Module resolves the clear-signing descriptor. By default it uses
+      // Ledger's real CAL (fully dynamic, nothing bundled); set CAL_MIRROR_URL to
+      // point it at your own mirror for a datacenter deploy.
+      const ctxBuilder = new ContextModuleBuilder({ originToken: "agent-pays-agent" }).setChain(
+        ContextModuleChainID.Ethereum,
+      );
+      if (CAL_MIRROR_URL) {
+        ctxBuilder.setCalConfig({ url: CAL_MIRROR_URL, mode: "prod", branch: "main" });
+      }
+      const contextModule = ctxBuilder.build();
 
       return new SignerEthBuilder({ dmk, sessionId }).withContextModule(contextModule).build();
     })().catch((err) => {

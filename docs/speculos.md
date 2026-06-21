@@ -75,23 +75,20 @@ Quick reachability check:
 curl -s http://localhost:5000/events >/dev/null && echo "Speculos is reachable"
 ```
 
-## 4. Clear signing (no device toggle needed)
+## 4. Clear signing (no device toggle, no blind signing)
 
-We sign with clear signing: the full EIP-712 message is streamed to the app and a
-signed ERC-7730 descriptor from Ledger's registry (Circle USDC
-`transferWithAuthorization` for x402, covering Base) tells the device to show a
-curated view, **From / To / Amount** (for example "0.01 USDC"), and hide the
-`nonce`, `validAfter` and `validBefore` fields. The signer fetches that descriptor
-from Ledger's CAL service (`https://crypto-assets-service.api.ledger.com`) at
-sign time, so the machine running the server needs outbound access to it.
+Signing goes through the Ledger Device Management Kit (`signTypedData`). The
+Context Module fetches the signed ERC-7730 descriptor for Circle USDC
+`transferWithAuthorization` (x402, covering Base) from Ledger's CAL service, and
+the device shows a curated view, **From / To / Amount** (for example "0.01
+USDC"), hiding the `nonce`, `validAfter` and `validBefore` fields. You approve
+exactly what you see; no device setting and no blind signing.
 
-With the descriptor applied you do not need any device setting; keep **Blind
-signing OFF**. When you sign, scroll through the curated fields with **right**,
-then **both** on "Approve".
-
-Fallback: if the CAL service is unreachable, the signer streams the raw message
-instead, which the app only displays when **"Display raw messages"** is enabled
-(Settings), and you may see `SW=6a80` until it is on.
+Because the descriptor is fetched at sign time, **run the server from a normal
+(non-datacenter) network** so the CAL is reachable. Ledger's CAL edge WAF-blocks
+datacenter IPs (e.g. cloud hosts like Railway), so a local run is the simplest
+way to get fully dynamic clear signing. When you sign, scroll through the curated
+fields with **right**, then **both** on "Approve".
 
 ## 5. Start the app in real-signer mode (second terminal)
 
