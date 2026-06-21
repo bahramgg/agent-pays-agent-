@@ -58,15 +58,19 @@ Nothing here is "versus" anything.
 The signer is behind one switch (`USE_REAL_SIGNER`). With it off (default), the
 signature is simulated. With it **on**, `POST /api/sign` produces a **real**
 EIP-712 x402 signature on the Ledger **Speculos** emulator with **clear
-signing**: `server/ledgerSigner.mjs` drives the official Ledger SDK
-(`@ledgerhq/hw-app-eth`) to stream the full EIP-712 message to the device, so it
-displays the actual fields (to, value, nonce, ...) and you approve exactly what
-is signed. The signature is then verified to recover to the Ledger address with
-`ethers`. The Ledger SDK and `ethers` are optional dependencies loaded lazily,
-so the simulated build is unaffected. If Speculos is not reachable in real mode,
-the UI shows a friendly error and never fakes a signature. See
-[`docs/speculos.md`](./docs/speculos.md) for exact local steps (including
-enabling "Display raw messages" for clear signing).
+signing**, through the **Ledger Device Management Kit** (the layer the Ledger
+Agent Stack recommends): `server/ledgerSigner.mjs` uses
+`@ledgerhq/device-management-kit` + `@ledgerhq/device-transport-kit-speculos`
+(HTTP transport to a hosted Speculos) + `@ledgerhq/device-signer-kit-ethereum`
+(`signTypedData`) + `@ledgerhq/context-module` (clear-signing descriptor). The
+device shows the curated Circle USDC fields (From / To / Amount) from the signed
+ERC-7730 descriptor and you approve exactly what is signed; the signature is then
+verified to recover to the Ledger address with `ethers`. The descriptor comes
+from a CAL mirror served by this server (`/cal/v1/dapps`) so the deploy never
+depends on Ledger's CAL edge. The Ledger SDK and `ethers` are optional
+dependencies loaded lazily, so the simulated build is unaffected. If Speculos is
+not reachable in real mode, the UI shows a friendly error and never fakes a
+signature. See [`docs/speculos.md`](./docs/speculos.md) for the local steps.
 
 ## Tech
 

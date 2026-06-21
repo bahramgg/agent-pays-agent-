@@ -17,10 +17,13 @@
     "esbuild": "^0.24.0",
     "typescript": "^5.6.0"
   },
-  "comment:optionalDependencies": "Only needed for real Ledger CLEAR signing (USE_REAL_SIGNER=true); loaded lazily and optional so a failed/omitted install never breaks the simulated build. The official Ledger SDK (@ledgerhq/hw-app-eth) streams the full EIP-712 message to Speculos for clear signing; its CommonJS build is loaded via createRequire because the ESM build is broken under Node. ethers computes/verifies the typed data. See docs/speculos.md.",
+  "comment:optionalDependencies": "Only needed for real Ledger CLEAR signing (USE_REAL_SIGNER=true); loaded lazily and optional so a failed/omitted install never breaks the simulated build. Per the Ledger Agent Stack docs, signing goes through the Device Management Kit: device-management-kit (core) + device-transport-kit-speculos (HTTP transport to a hosted Speculos) + device-signer-kit-ethereum (signTypedData) + context-module (clear-signing descriptor). CommonJS builds are loaded via createRequire because the DMK ESM builds use directory imports Node cannot resolve. rxjs drives the device-action observables; ethers verifies the typed data. See docs/speculos.md.",
   "optionalDependencies": {
-    "@ledgerhq/hw-app-eth": "^7.8.6",
-    "@ledgerhq/hw-transport": "^6.31.4",
-    "ethers": "^6.13.0"
+    "@ledgerhq/context-module": "^2.1.0",
+    "@ledgerhq/device-management-kit": "^1.7.1",
+    "@ledgerhq/device-signer-kit-ethereum": "^1.16.0",
+    "@ledgerhq/device-transport-kit-speculos": "^1.2.1",
+    "ethers": "^6.13.0",
+    "rxjs": "^7.8.0"
   }
 }
