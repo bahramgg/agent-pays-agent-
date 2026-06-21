@@ -1,0 +1,36 @@
+# One-command local run with REAL Ledger clear signing.
+#
+#   docker compose up
+#
+# Then open http://localhost:3000 (the app) and http://localhost:5000 (the
+# Speculos device, where you approve). Signing goes through the Device
+# Management Kit; the clear-signing descriptor is fetched dynamically from
+# Ledger's CAL. Run this on a normal home/office network (not a datacenter) so
+# the CAL is reachable. Nothing is bundled and there is no blind signing.
+services:
+  speculos:
+    image: ghcr.io/ledgerhq/speculos:latest
+    command: --model nanosp --display headless --api-port 5000 /apps/ethereum.elf
+    volumes:
+      - ./infra/speculos:/apps:ro
+    ports:
+      - "5000:5000"
+
+  web:
+    image: node:20
+    working_dir: /app
+    command: sh -c "npm install && npm run dev"
+    environment:
+      USE_REAL_SIGNER: "true"
+      SPECULOS_URL: "http://speculos:5000"
+      # Public URL the browser uses to open the signer for approval.
+      SPECULOS_PUBLIC_URL: "http://localhost:5000"
+      PORT: "3000"
+    volumes:
+      - .:/app
+      # Keep container node_modules separate from any host install.
+      - /app/node_modules
+    ports:
+      - "3000:3000"
+    depends_on:
+      - speculos
