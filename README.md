@@ -127,11 +127,12 @@ src/
   main.ts      # entry: start the engine
 server.js      # static server + x402 API (/api/config, /api/weather, /api/sign)
 server/
-  ledgerSigner.mjs            # real clear signing on Speculos via hw-app-eth
+  ledgerSigner.mjs            # default demo: clear signing on Speculos via hw-app-eth
+  ledgerSigner.dmk.mjs        # reference: the production Ledger Agent Stack (DMK) path
   eip712-usdc-base-filters.json  # bundled filter descriptor (test-key signed)
   erc20-signatures.json          # bundled USDC token info (test-key signed)
 infra/
-  speculos/                   # Speculos Dockerfile + the built clear-signing app
+  speculos/                   # holds the built clear-signing app (.elf)
   clearsign-app/              # build the CAL_TEST_KEY app + gen-filters.mjs + cal.pem
 build.mjs      # esbuild: bundle + copy static assets -> dist/
 docker-compose.yml  # one command: Speculos (test-key app) + the web app
