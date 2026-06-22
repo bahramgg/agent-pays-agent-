@@ -287,6 +287,19 @@ body {
   margin: 0;
   color: var(--near-black);
 }
+/* Highlight live values (amount, tx hash, forecast, ...) so the result the
+   server returns is eye-catching instead of buried in the sentence. */
+.dialogue__value {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  color: var(--base-blue);
+  background: rgba(0, 82, 255, 0.1);
+  padding: 1px 5px;
+  border-radius: 4px;
+  white-space: nowrap;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
 .choices {
   display: flex;
   flex-direction: column;

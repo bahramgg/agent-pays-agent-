@@ -61,7 +61,14 @@ const SPEAKER_LABEL: Record<Speaker, string> = {
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const cap = (s: string) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
-const interpolate = (text: string) => text.replace(/\{(\w+)\}/g, (_, k) => ctx.values[k] ?? "");
+const escapeHtml = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+// Like interpolate, but wraps each filled value so results (amount, tx hash,
+// forecast) stand out in the dialogue instead of reading as plain text.
+const interpolateHTML = (text: string) =>
+  escapeHtml(text).replace(/\{(\w+)\}/g, (_, k) => {
+    const v = ctx.values[k];
+    return v ? `<span class="dialogue__value">${escapeHtml(String(v))}</span>` : "";
+  });
 
 // ---- bottom accordion -----------------------------------------------------
 function openHowItWorks(): void {
@@ -180,7 +187,7 @@ function setActiveSpeaker(speaker: Speaker): void {
 
 function renderDialogue(node: SceneNode): void {
   speakerName.textContent = SPEAKER_LABEL[node.speaker];
-  dialogueText.textContent = interpolate(node.text);
+  dialogueText.innerHTML = interpolateHTML(node.text);
   setActiveSpeaker(node.speaker);
   if (!reducedMotion) {
     dialogueText.classList.remove("fade-in");
