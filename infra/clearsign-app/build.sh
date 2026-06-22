@@ -41,6 +41,13 @@ else
   echo "==> Reusing existing clone at $WORK (set FRESH=1 to re-clone)"
 fi
 
+# Make the EIP-712 review header read like a payment review instead of the
+# generic "Review typed message" / "... typed message?". Idempotent (a reused
+# clone that is already patched simply matches nothing).
+echo "==> Patching the EIP-712 review title"
+sed -i 's/Review typed message/Review USDC transfer/g; s/ typed message?/ USDC transfer?/g' \
+  "$WORK/src/nbgl/ui_sign_712.c"
+
 echo "==> Building with CAL_TEST_KEY=1 for $BOLOS_TARGET (this takes a few minutes)"
 # Resolve the SDK path INSIDE the container (single-quoted body), so the env var
 # is expanded where it is defined rather than on the host.
