@@ -81,16 +81,14 @@ function sign(payload) {
   return crypto.createSign("sha256").update(payload).sign({ key: calKey, dsaEncoding: "der" }).toString("hex");
 }
 
-// Stage 2 (validation): show every field raw so we confirm the test-key app
-// accepts our self-signed filters. Stage 2b swaps `value` to a tokenAmount
-// ("0.01 USDC") and the dates to datetime, and hides the nonce.
+// Only these fields are filtered (shown). Any message field NOT listed here is
+// hidden by the app (it stays part of the signed hash but is not displayed),
+// because the signed message-info attests how many fields the curated view has.
+// So omitting validAfter / validBefore / nonce hides them.
 const fields = [
   { path: "from", label: "From" },
   { path: "to", label: "To" },
   { path: "value", label: "Amount" },
-  { path: "validAfter", label: "Valid after" },
-  { path: "validBefore", label: "Valid before" },
-  { path: "nonce", label: "Nonce" },
 ];
 
 // message info (a.k.a. contractName): prefix | filtersCount(1) | name
