@@ -221,7 +221,14 @@ function ensureTransport() {
 // validAfter / validBefore. Without a descriptor it streams the raw message.
 function makeEth(filters) {
   const loadConfig = filters
-    ? { staticEIP712SignaturesV2: { [STATIC_KEY]: filters }, calServiceURL: null }
+    ? {
+        staticEIP712SignaturesV2: { [STATIC_KEY]: filters },
+        calServiceURL: null,
+        // The "amount" filter (coin ref 255) makes the SDK fetch the USDC token
+        // info to render "0.01 USDC". Point it at our own server, which serves a
+        // test-key-signed blob, so nothing hits Ledger's CAL.
+        cryptoassetsBaseURL: process.env.CRYPTOASSETS_BASE_URL || `http://localhost:${process.env.PORT || 3000}`,
+      }
     : {};
   return new Eth(ensureTransport(), "w0w", loadConfig);
 }

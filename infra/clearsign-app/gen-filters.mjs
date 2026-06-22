@@ -53,6 +53,14 @@ const TYPES = {
 // Filter magics (app-ethereum InputData.py / filtering.c).
 const MAGIC_MESSAGE_INFO = 183;
 const MAGIC_RAW = 72;
+const MAGIC_AMOUNT_VALUE = 22;
+// The amount's token is the EIP-712 verifying contract (USDC itself), which the
+// app/CAL reference by coin ref 255 (0xff) for "Permit"-like messages.
+const COIN_REF_VERIFYING = 255;
+
+// USDC token info so the amount renders as "0.01 USDC" instead of "10000".
+const TOKEN_TICKER = "USDC";
+const TOKEN_DECIMALS = 6;
 
 // SHA224 of the alphabetically-sorted types (recursive) -> the device's schema hash.
 const sortAlpha = (o) =>
@@ -84,11 +92,12 @@ function sign(payload) {
 // Only these fields are filtered (shown). Any message field NOT listed here is
 // hidden by the app (it stays part of the signed hash but is not displayed),
 // because the signed message-info attests how many fields the curated view has.
-// So omitting validAfter / validBefore / nonce hides them.
+// So omitting validAfter / validBefore / nonce hides them. `value` uses the
+// "amount" format bound to the verifying contract (USDC) -> "0.01 USDC".
 const fields = [
-  { path: "from", label: "From" },
-  { path: "to", label: "To" },
-  { path: "value", label: "Amount" },
+  { path: "from", label: "From", format: "raw" },
+  { path: "to", label: "To", format: "raw" },
+  { path: "value", label: "Amount", format: "amount" },
 ];
 
 // message info (a.k.a. contractName): prefix | filtersCount(1) | name
@@ -99,8 +108,18 @@ const messageInfoPayload = Buffer.concat([
 ]);
 const contractName = { label: MESSAGE_NAME, signature: sign(messageInfoPayload) };
 
-// raw field filter: prefix | path | displayName
 const outFields = fields.map((f) => {
+  if (f.format === "amount") {
+    // amount value filter (magic 22): prefix | path | displayName | joinId(=255)
+    const payload = Buffer.concat([
+      prefix(MAGIC_AMOUNT_VALUE),
+      Buffer.from(f.path, "ascii"),
+      Buffer.from(f.label, "ascii"),
+      Buffer.from([COIN_REF_VERIFYING]),
+    ]);
+    return { format: "amount", coin_ref: COIN_REF_VERIFYING, label: f.label, path: f.path, signature: sign(payload) };
+  }
+  // raw field filter (magic 72): prefix | path | displayName
   const payload = Buffer.concat([prefix(MAGIC_RAW), Buffer.from(f.path, "ascii"), Buffer.from(f.label, "ascii")]);
   return { format: "raw", label: f.label, path: f.path, signature: sign(payload) };
 });
@@ -108,6 +127,28 @@ const outFields = fields.map((f) => {
 const filters = { contractName, fields: outFields };
 const outPath = join(ROOT, "server", "eip712-usdc-base-filters.json");
 writeFileSync(outPath, JSON.stringify(filters, null, 2) + "\n");
+
+// --- USDC token info blob (so the amount shows "0.01 USDC") ----------------
+// provideERC20 payload = tickerLen(1) | ticker | address(20) | decimals(4 BE)
+//   | chainId(4 BE) | signature. The device hashes everything after tickerLen
+// and verifies it with the same COIN_META key (cal.pem). hw-app-eth fetches the
+// blob (base64 of: uint32BE(itemLen) | item) from cryptoassetsBaseURL.
+const tickerBuf = Buffer.from(TOKEN_TICKER, "ascii");
+const addrBuf = Buffer.from(CONTRACT.slice(2), "hex");
+const decBuf = Buffer.alloc(4);
+decBuf.writeUInt32BE(TOKEN_DECIMALS);
+const chainBuf = Buffer.alloc(4);
+chainBuf.writeUInt32BE(CHAIN_ID);
+const tokenSig = crypto
+  .createSign("sha256")
+  .update(Buffer.concat([tickerBuf, addrBuf, decBuf, chainBuf]))
+  .sign({ key: calKey, dsaEncoding: "der" });
+const item = Buffer.concat([Buffer.from([tickerBuf.length]), tickerBuf, addrBuf, decBuf, chainBuf, tokenSig]);
+const itemLen = Buffer.alloc(4);
+itemLen.writeUInt32BE(item.length);
+const erc20Blob = Buffer.concat([itemLen, item]).toString("base64");
+const erc20Path = join(ROOT, "server", "erc20-signatures.json");
+writeFileSync(erc20Path, JSON.stringify({ [CHAIN_ID]: erc20Blob }, null, 2) + "\n");
 
 console.log("chainId      :", CHAIN_ID);
 console.log("contract     :", CONTRACT);
