@@ -1,37 +1,20 @@
-# Custom clear-signing Ethereum app (test key)
+# Build the Speculos Ethereum app
 
-This builds a Ledger Ethereum app `.elf` for Speculos that verifies clear-signing
-filters against the **public test key** (`app-ethereum/.../keychain/cal.pem`)
-instead of Ledger's production CAL key.
-
-## Why this exists
-
-The x402 USDC `TransferWithAuthorization` clear-signing descriptor is real and
-lives in Ledger's registry (`registry/circle/eip712-TransferWithAuthorization.json`),
-with the curated display **From / To / Amount = "0.01 USDC"**. But the *signed*
-filters are served only by Ledger's CAL behind a **gating token** (that is why
-every fetch returns `Not Authorized`, regardless of network or VPN -- it is an
-auth gate, not geo-blocking).
-
-Ledger's own app/CI solves the same problem with a **test key**: the app source
-has `HAVE_CAL_TEST_KEY`, and `cal.pem` (whose public key matches that constant)
-is published in app-ethereum. So we:
-
-1. Build the app with `CAL_TEST_KEY=1` -> it trusts `cal.pem`.
-2. Sign the x402 USDC filters ourselves with `cal.pem` (see the generator, next
-   stage).
-3. The device shows the curated view. **No CAL, no token, no blind signing.**
-
-This is for the Speculos emulator only. It is a TEST-KEY build and must never be
-used with real funds.
-
-## Build it
-
-From the repo root, with Docker running:
+`docker-compose.yml` mounts this folder's parent (`infra/speculos`) into the
+Speculos container and loads `ethereum.elf` from it. That `.elf` is gitignored;
+produce it once with:
 
 ```bash
 ./infra/clearsign-app/build.sh
 ```
 
-This writes `infra/speculos/ethereum-clearsign.elf`, which `docker-compose.yml`
-loads into Speculos. Override the pinned source with `APP_ETHEREUM_REF=...`.
+This builds the standard Ledger Ethereum app from source for the Nano S+ target.
+You can instead download a release `.elf` from
+[app-ethereum releases](https://github.com/LedgerHQ/app-ethereum/releases) and
+save it as `infra/speculos/ethereum.elf`.
+
+Signing then goes through the Ledger Agent Stack (DMK) -- see
+[`../../docs/speculos.md`](../../docs/speculos.md). Curated clear signing
+(From / To / "0.01 USDC") needs a valid partner `originToken`
+(`LEDGER_ORIGIN_TOKEN`) and Ledger's CAL reachable; without it the device shows
+raw fields / blind signing, which is Ledger's documented behavior.

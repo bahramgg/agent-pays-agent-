@@ -1,89 +1,53 @@
 // server/ledgerSigner.mjs
-// Real x402 EIP-712 CLEAR signing on the Ledger Speculos emulator.
+// Real x402 EIP-712 CLEAR signing on Ledger via the Ledger Device Management Kit.
 //
-// Clear signing (not blind): the full EIP-712 typed data is streamed to the
-// Ledger Ethereum app so the DEVICE displays curated fields (From / To /
-// Amount "0.01 USDC") and the user approves exactly what is signed. The private
-// key stays in hardware.
+// This follows the Ledger Agent Stack docs: it drives the device through the
+// official DMK stack rather than raw APDUs.
+//   - @ledgerhq/device-management-kit         (DMK core)
+//   - @ledgerhq/device-transport-kit-speculos (HTTP transport to a hosted Speculos)
+//   - @ledgerhq/device-signer-kit-ethereum    (the Ethereum Signer: signTypedData)
+//   - @ledgerhq/context-module                (clear-signing descriptor resolution)
 //
-// We drive the official Ledger SDK (@ledgerhq/hw-app-eth) over a tiny custom
-// transport that POSTs APDUs to Speculos at <SPECULOS_URL>/apdu. signEIP712Message
-// streams the struct definition + values, the clear-signing FILTERING APDUs, then
-// the SIGN. The filtering descriptor is NOT fetched from Ledger's CAL (it is a
-// gated descriptor that returns "Not Authorized"). Instead it is bundled at
-// server/eip712-usdc-base-filters.json, signed with the public test key
-// (infra/clearsign-app/cal.pem), and the Speculos app is built with CAL_TEST_KEY=1
-// to trust that key. The USDC token info (for "0.01 USDC") is served locally from
-// this same app (see server.js + cryptoassetsBaseURL below). Nothing hits Ledger's
-// CAL; no gating token; no blind signing. See infra/clearsign-app/README.md.
+// Clear signing (not blind): signTypedData streams the full EIP-712 message and
+// the Signer fetches the signed ERC-7730 descriptor through the Context Module,
+// so the DEVICE displays the curated fields (From / To / Amount) and the user
+// approves exactly what is signed. The private key stays in hardware.
 //
-// The hw-app-eth ESM build (lib-es) has extensionless imports that Node cannot
-// resolve, so we load its CommonJS build via createRequire. This module is
-// imported by server.js ONLY when USE_REAL_SIGNER=true, so the simulated build
-// never needs ethers, the Ledger SDK, or Speculos. No secrets here: Speculos
-// uses its test seed.
+// Descriptor source: the Context Module fetches the signed ERC-7730 descriptor
+// from Ledger's CAL service. Curated clear signing requires a valid partner
+// `originToken` (set LEDGER_ORIGIN_TOKEN; enroll at
+// https://developers.ledger.com/docs/clear-signing/for-wallets). WITHOUT a valid
+// token the descriptor is not served and the device shows raw fields / blind
+// signing -- this is Ledger's documented behavior, not a bug. CAL must also be
+// reachable (a normal, non-datacenter network); CAL_MIRROR_URL can override it.
+//
+// The DMK ESM build has directory imports Node cannot resolve, so we load the
+// CommonJS builds via createRequire. This module is imported by server.js ONLY
+// when USE_REAL_SIGNER=true. No secrets here: Speculos uses its test seed.
 
 import { createRequire } from "module";
-import { readFileSync } from "fs";
-import { fileURLToPath } from "url";
-import { dirname, join } from "path";
 import { ethers } from "ethers";
 
 const require = createRequire(import.meta.url);
-const HERE = dirname(fileURLToPath(import.meta.url));
-// CommonJS builds (the ESM "lib-es" builds are broken under Node).
-const Eth = require("@ledgerhq/hw-app-eth").default;
-const Transport = require("@ledgerhq/hw-transport").default;
+const { DeviceManagementKitBuilder, DeviceActionStatus } = require("@ledgerhq/device-management-kit");
+const { speculosTransportFactory } = require("@ledgerhq/device-transport-kit-speculos");
+const { SignerEthBuilder } = require("@ledgerhq/device-signer-kit-ethereum");
+const { ContextModuleBuilder, ContextModuleChainID } = require("@ledgerhq/context-module");
+const { firstValueFrom, timeout } = require("rxjs");
 
 const SPECULOS_URL = process.env.SPECULOS_URL || "http://localhost:5000";
 const DERIVATION_PATH = process.env.LEDGER_DERIVATION_PATH || "44'/60'/0'/0/0";
-// Address read is instant; signing waits for the user to approve on the device.
-const ADDRESS_TIMEOUT_MS = Number(process.env.SPECULOS_ADDRESS_TIMEOUT_MS || 10000);
-const SIGN_TIMEOUT_MS = Number(process.env.SPECULOS_SIGN_TIMEOUT_MS || 120000);
+const DISCOVER_TIMEOUT_MS = Number(process.env.SPECULOS_ADDRESS_TIMEOUT_MS || 12000);
+// Optional CAL mirror for hosted deploys; unset = use Ledger's real CAL (default).
+const CAL_MIRROR_URL = process.env.CAL_MIRROR_URL || "";
 
-// x402 USDC-on-Base domain + types (fixed). EIP712Domain is included because
-// the SDK streams the domain struct too.
+// x402 USDC-on-Base typed data (fixed).
 const DOMAIN = {
   name: "USD Coin",
   version: "2",
   chainId: 8453,
   verifyingContract: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
 };
-// Schema hash of our exact TransferWithAuthorization typed data (computed with
-// Ledger's evm-tools getSchemaHashForMessage). The static filter is keyed by it.
-const OUR_SCHEMA_HASH = "1cb336ca4e31494498ce2c7f0c1e7514c5646e5b0636f8cce4ccbe14";
-// Lookup key the SDK uses for a static filter: `${chainId}:${contract}:${schemaHash}`.
-const STATIC_KEY = `${DOMAIN.chainId}:${DOMAIN.verifyingContract.toLowerCase()}:${OUR_SCHEMA_HASH}`;
-// The signed filter descriptor is bundled (never fetched). Source order: the
-// LEDGER_EIP712_FILTERS env (MessageFilters JSON), else the committed file
-// server/eip712-usdc-base-filters.json (the inner MessageFilters object, or a
-// raw CAL /v1/dapps array). Generated by infra/clearsign-app/gen-filters.mjs.
-function loadBundledFilters() {
-  const contract = DOMAIN.verifyingContract.toLowerCase();
-  const pick = (parsed) => {
-    if (!parsed) return null;
-    // Raw CAL response: an array of dapp objects.
-    if (Array.isArray(parsed)) {
-      const item = parsed.find((x) => x?.eip712_signatures?.[contract]?.[OUR_SCHEMA_HASH]);
-      return item ? item.eip712_signatures[contract][OUR_SCHEMA_HASH] : null;
-    }
-    // Already the inner MessageFilters object.
-    if (parsed.contractName || parsed.fields) return parsed;
-    return null;
-  };
-  try {
-    if (process.env.LEDGER_EIP712_FILTERS) return pick(JSON.parse(process.env.LEDGER_EIP712_FILTERS));
-  } catch {
-    /* fall through to the file */
-  }
-  try {
-    return pick(JSON.parse(readFileSync(join(HERE, "eip712-usdc-base-filters.json"), "utf8")));
-  } catch {
-    return null;
-  }
-}
-const bundledFilters = loadBundledFilters();
-
 const PRIMARY_TYPE = "TransferWithAuthorization";
 const TYPES = {
   EIP712Domain: [
@@ -104,100 +68,72 @@ const TYPES = {
 // ethers verifies against the message types only (no EIP712Domain entry).
 const VERIFY_TYPES = { TransferWithAuthorization: TYPES.TransferWithAuthorization };
 
-/** Minimal Ledger transport that ferries APDUs to Speculos over HTTP. */
-class SpeculosHttpTransport extends Transport {
-  constructor() {
-    super();
-    this.resetDiag();
-  }
+let dmk = null;
+let sessionId = null;
+let signerPromise = null;
 
-  // Diagnostics so we can tell clear signing from the raw fallback: did any
-  // EIP-712 filtering APDU (E0 1E) get sent (descriptor fetched + applied), and
-  // which APDU/SW failed.
-  resetDiag() {
-    this.sawFiltering = false;
-    this.lastReqIns = null;
-    this.lastSw = null;
-  }
+/** Build the DMK, connect to Speculos, and build the Ethereum signer (once). */
+async function getSigner() {
+  if (!signerPromise) {
+    signerPromise = (async () => {
+      dmk = new DeviceManagementKitBuilder()
+        .addTransport(speculosTransportFactory(SPECULOS_URL))
+        .build();
+      const device = await firstValueFrom(dmk.startDiscovering({}).pipe(timeout(DISCOVER_TIMEOUT_MS)));
+      sessionId = await dmk.connect({ device });
 
-  async exchange(apdu) {
-    const hex = apdu.toString("hex");
-    this.lastReqIns = hex.slice(0, 8);
-    if (hex.startsWith("e01e")) this.sawFiltering = true;
-    // The SIGN APDU blocks on user approval; everything else is instant.
-    const timeoutMs = hex.startsWith("e00c") ? SIGN_TIMEOUT_MS : ADDRESS_TIMEOUT_MS;
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeoutMs);
-    let res;
-    try {
-      res = await fetch(`${SPECULOS_URL}/apdu`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ data: hex }),
-        signal: controller.signal,
-      });
-    } catch (err) {
-      if (err && err.name === "AbortError") {
-        throw new Error(
-          `No response from the Ledger within ${Math.round(timeoutMs / 1000)}s ` +
-            `(did you approve on the device?).`,
-        );
+      // Context Module resolves the clear-signing descriptor from Ledger's CAL.
+      // A valid partner originToken (LEDGER_ORIGIN_TOKEN) is what unlocks curated
+      // clear signing; without it CAL returns nothing and the device shows raw /
+      // blind. CAL_MIRROR_URL can point the lookup at a mirror.
+      const originToken = process.env.LEDGER_ORIGIN_TOKEN || "agent-pays-agent";
+      const ctxBuilder = new ContextModuleBuilder({ originToken }).setChain(ContextModuleChainID.Ethereum);
+      if (CAL_MIRROR_URL) {
+        ctxBuilder.setCalConfig({ url: CAL_MIRROR_URL, mode: "prod", branch: "main" });
       }
-      throw new Error(
-        `Cannot reach the Ledger Speculos emulator at ${SPECULOS_URL}. Is it running? ` +
-          (err && err.message ? err.message : String(err)),
-      );
-    } finally {
-      clearTimeout(timer);
-    }
-    const json = await res.json().catch(() => ({}));
-    const respHex = String(json.data || "");
-    if (!respHex) throw new Error(`Empty APDU response from Speculos: ${JSON.stringify(json)}`);
-    this.lastSw = respHex.slice(-4);
-    // Base Transport.send checks the trailing status word and throws on non-9000.
-    return Buffer.from(respHex, "hex");
+      const contextModule = ctxBuilder.build();
+
+      return new SignerEthBuilder({ dmk, sessionId }).withContextModule(contextModule).build();
+    })().catch((err) => {
+      signerPromise = null; // allow retry on a later request
+      throw err;
+    });
   }
+  return signerPromise;
 }
 
-let transport = null;
-function ensureTransport() {
-  if (!transport) transport = new SpeculosHttpTransport();
-  return transport;
+/** Drive a DMK device-action observable to its terminal state. */
+function runDeviceAction(observable, label) {
+  return new Promise((resolve, reject) => {
+    const sub = observable.subscribe({
+      next: (state) => {
+        if (state.status === DeviceActionStatus.Completed) {
+          resolve(state.output);
+          sub.unsubscribe();
+        } else if (state.status === DeviceActionStatus.Error) {
+          reject(explainDeviceError(state.error, label));
+          sub.unsubscribe();
+        }
+      },
+      error: (err) => reject(explainDeviceError(err, label)),
+      complete: () => {},
+    });
+  });
 }
 
-// Build an Eth client. For signing we hand it the signed descriptor as a static
-// filter (and disable the SDK's own CAL fetch, which the WAF 403s) so the device
-// clear-signs the curated Circle USDC fields (From / To / Amount), hiding nonce /
-// validAfter / validBefore. Without a descriptor it streams the raw message.
-function makeEth(filters) {
-  const loadConfig = filters
-    ? {
-        staticEIP712SignaturesV2: { [STATIC_KEY]: filters },
-        calServiceURL: null,
-        // The "amount" filter (coin ref 255) makes the SDK fetch the USDC token
-        // info to render "0.01 USDC". Point it at our own server, which serves a
-        // test-key-signed blob, so nothing hits Ledger's CAL.
-        cryptoassetsBaseURL: process.env.CRYPTOASSETS_BASE_URL || `http://localhost:${process.env.PORT || 3000}`,
-      }
-    : {};
-  return new Eth(ensureTransport(), "w0w", loadConfig);
-}
-
-function explainError(err) {
-  const msg = (err && err.message) || String(err);
-  // hw-transport throws TransportStatusError with a numeric statusCode for SWs.
-  const sw = err && err.statusCode ? err.statusCode.toString(16).padStart(4, "0") : null;
-  if (sw === "6985") {
+function explainDeviceError(err, label) {
+  const code = err && (err.errorCode || (err.customErrorCode ?? null));
+  const msg = (err && (err.message || err.originalError?.message)) || String(err);
+  if (code === "6985") {
     return new Error("Rejected on the device.");
   }
-  if (sw === "6a80") {
+  if (code === "6a80") {
     return new Error(
-      "Invalid EIP-712 data, or the clear-signing filters were rejected (is Speculos running the " +
-        "CAL_TEST_KEY app from infra/clearsign-app/build.sh?).",
+      "Invalid EIP-712 data, or no clear-signing descriptor was available so the device " +
+        "required blind signing. Set a valid LEDGER_ORIGIN_TOKEN (and ensure CAL is reachable).",
     );
   }
-  if (sw) return new Error(`Speculos returned SW=${sw}. ${msg}`);
-  return err instanceof Error ? err : new Error(msg);
+  return new Error(`${label} failed: ${code ? `SW=${code} ` : ""}${msg}`);
 }
 
 let cachedAddress = null;
@@ -205,20 +141,16 @@ let cachedAddress = null;
 /** Read the Ledger address (no on-device confirmation). */
 export async function getLedgerAddress() {
   if (cachedAddress) return cachedAddress;
-  try {
-    const eth = makeEth(null);
-    const { address } = await eth.getAddress(DERIVATION_PATH, false);
-    cachedAddress = ethers.getAddress(address);
-    return cachedAddress;
-  } catch (err) {
-    throw explainError(err);
-  }
+  const signer = await getSigner();
+  const { observable } = signer.getAddress(DERIVATION_PATH, { checkOnDevice: false });
+  const out = await runDeviceAction(observable, "Get address");
+  cachedAddress = ethers.getAddress(out.address);
+  return cachedAddress;
 }
 
 /**
- * Build the x402 transferWithAuthorization typed data with the given message
- * values (from is forced to the Ledger address, the real signer), clear-sign
- * it on Speculos by streaming the full EIP-712 message, and return the verified
+ * Build the x402 transferWithAuthorization typed data (from is forced to the
+ * Ledger address), clear-sign it on the device via DMK, and return the verified
  * x402 payload.
  */
 export async function signX402Authorization(message) {
@@ -241,32 +173,12 @@ export async function signX402Authorization(message) {
     message: authorization,
   };
 
-  // Hand the bundled signed descriptor to the SDK as a static filter, so the
-  // device clear-signs the curated fields (no CAL fetch).
-  const filters = bundledFilters;
+  const signer = await getSigner();
+  const { observable } = signer.signTypedData(DERIVATION_PATH, typedData);
+  const raw = await runDeviceAction(observable, "Sign typed data"); // { r, s, v }
 
-  let raw;
-  try {
-    const eth = makeEth(filters);
-    ensureTransport().resetDiag();
-    // Clear signing: streams the message with the descriptor applied; the device
-    // shows the curated fields (From / To / Amount) for the user to approve.
-    raw = await eth.signEIP712Message(DERIVATION_PATH, typedData);
-  } catch (err) {
-    // Did the E0 1E filtering APDUs actually go out (curated clear signing), or
-    // did it fall back to the raw message? Report that plus why the descriptor
-    // was or was not available.
-    const loaded = transport && transport.sawFiltering;
-    const diag =
-      ` [descriptor ${loaded ? "applied" : "NOT applied"}; bundled: ${bundledFilters ? "yes" : "MISSING"};` +
-      ` last APDU ${transport ? transport.lastReqIns : "?"} -> SW ${transport ? transport.lastSw : "?"}]`;
-    const e = explainError(err);
-    e.message += diag;
-    throw e;
-  }
-
-  const r = "0x" + raw.r;
-  const s = "0x" + raw.s;
+  const r = raw.r.startsWith("0x") ? raw.r : "0x" + raw.r;
+  const s = raw.s.startsWith("0x") ? raw.s : "0x" + raw.s;
   const vRaw = typeof raw.v === "number" ? raw.v : parseInt(raw.v, 16);
 
   // Normalize v to 27/28 and confirm the signature recovers to the Ledger address.
