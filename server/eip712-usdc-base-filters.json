@@ -1,0 +1,44 @@
+{
+  "contractName": {
+    "label": "Authorize USDC transfer",
+    "signature": "3044022064ab85718b554142ccce91c6c6a0e482f88e9489717ce50bdf38f2f3132f68c80220019149d8834e01c22de56cccccd20881390aa1a37c09561ae55d69c1524af745"
+  },
+  "fields": [
+    {
+      "format": "raw",
+      "label": "From",
+      "path": "from",
+      "signature": "3046022100ab1e77009f2c9b5c0ffd0e185d6ccba110b9fe257e9ba53fe71778f18121f2b9022100bba347e727945bf0c9c88d4308a77b437de0204f638160716503fff98ee3386e"
+    },
+    {
+      "format": "raw",
+      "label": "To",
+      "path": "to",
+      "signature": "3045022066c2f19a969ac2189a97309971197dd507811ed9104077ef577d7ff772a9726002210095f04c93c5315fc1d8583beddd58baf7f47484601b5c52f1d42ad4c41ce17f69"
+    },
+    {
+      "format": "raw",
+      "label": "Amount",
+      "path": "value",
+      "signature": "3045022100b9a101523334613c496aa5e27f537dfb95d8de021e61b451bf71c2ce19c4a1e5022053f65783a2b87343dd76c179d8bfdaf44e49ca21bb30f941e2b6ef3f82c49031"
+    },
+    {
+      "format": "raw",
+      "label": "Valid after",
+      "path": "validAfter",
+      "signature": "3045022100b7403feb21f34d8a136cb474ea8723b1d4437b870d51e9ccc3b42f1c76de57c90220354123efab52f7cbaa269533f0051ec685c44f4a6acdd4363e15e6b84043cad5"
+    },
+    {
+      "format": "raw",
+      "label": "Valid before",
+      "path": "validBefore",
+      "signature": "304402205b8ee8a2aaa0940a2ae7715502c3f52198af39ffce3ab1716e8a42fb61b69aaa02204bb91eb30190bafefedfed10aecfb3a76ab6ed2c53adb6f743db03a3d9618244"
+    },
+    {
+      "format": "raw",
+      "label": "Nonce",
+      "path": "nonce",
+      "signature": "3044022076d2228dcb0d1b8da386da785768e67703d3b05194e9f379bf6ee61248e4a3f30220393cd862728e9bb1314d54b4179fe9bafd7ed68c3485a644305d26221b982c59"
+    }
+  ]
+}
