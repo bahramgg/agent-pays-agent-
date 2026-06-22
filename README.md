@@ -136,7 +136,6 @@ infra/
   clearsign-app/              # build the CAL_TEST_KEY app + gen-filters.mjs + cal.pem
 build.mjs      # esbuild: bundle + copy static assets -> dist/
 docker-compose.yml  # one command: Speculos (test-key app) + the web app
-render.yaml    # Render Blueprint (deploys the simulated demo)
 ```
 
 ## Run it locally
@@ -163,13 +162,6 @@ Speculos device, where you approve). The device shows **From / To / Amount
 "0.01 USDC"** -- no Ledger CAL, no gating token, no blind signing. Regenerate the
 bundled filters with `node infra/clearsign-app/gen-filters.mjs`. See
 [`docs/speculos.md`](./docs/speculos.md).
-
-## Deploy on Render
-
-The [`render.yaml`](./render.yaml) Blueprint deploys the **simulated** demo (the
-cartoon + real 402 + EIP-712, with a simulated signature): **New > Blueprint**,
-point it at the repo. Real clear signing needs the local Speculos build above and
-does not run hosted.
 
 ## What to check
 
