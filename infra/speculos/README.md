@@ -1,15 +1,14 @@
 # Speculos app folder
 
 `docker-compose.yml` mounts this folder into the Speculos container and loads
-`ethereum.elf` from it.
+`ethereum-clearsign.elf` from it.
 
-That `.elf` is the Ledger Ethereum app for the emulator. It is gitignored;
-produce it with the build script (or drop in a release build):
+That `.elf` is the **test-key** Ledger Ethereum app used for local curated clear
+signing. It is gitignored and produced by the build script:
 
 ```bash
 ./infra/clearsign-app/build.sh
 ```
 
-See [`../clearsign-app/README.md`](../clearsign-app/README.md) and
-[`../../docs/speculos.md`](../../docs/speculos.md) for the full run steps and how
-curated clear signing depends on a partner `originToken`.
+See [`../clearsign-app/README.md`](../clearsign-app/README.md) for what it does
+and [`../../docs/speculos.md`](../../docs/speculos.md) for the full run steps.

@@ -10,7 +10,7 @@
 // Flip USE_REAL_SIGNER=true (Phase 4) to route signing to the Ledger Speculos
 // emulator instead.
 import { createHash, randomBytes } from "node:crypto";
-import { createReadStream, existsSync, statSync } from "node:fs";
+import { createReadStream, existsSync, readFileSync, statSync } from "node:fs";
 import { createServer } from "node:http";
 import { dirname, extname, join, normalize, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -211,11 +211,35 @@ function serveStatic(req, res, urlPath) {
   createReadStream(filePath).pipe(res);
 }
 
+// Serve the locally-signed ERC20 token-info blob so the Ledger SDK can render
+// the x402 amount as "0.01 USDC". hw-app-eth fetches this from cryptoassetsBaseURL
+// (set in server/ledgerSigner.mjs to this server). The blob is signed with the
+// public test key, matching the CAL_TEST_KEY Speculos app -- no Ledger CAL.
+function serveErc20Signatures(res, urlPath) {
+  const m = urlPath.match(/^\/evm\/(\d+)\/erc20-signatures\.json$/);
+  try {
+    const all = JSON.parse(readFileSync(join(root, "server", "erc20-signatures.json"), "utf8"));
+    const blob = m && all[m[1]];
+    if (!blob) {
+      res.writeHead(404);
+      return res.end("");
+    }
+    res.writeHead(200, { "Content-Type": "text/plain" });
+    return res.end(blob);
+  } catch {
+    res.writeHead(404);
+    return res.end("");
+  }
+}
+
 const server = createServer((req, res) => {
   const urlPath = decodeURIComponent((req.url || "/").split("?")[0]);
   if (urlPath.startsWith("/api/")) {
     handleApi(req, res, urlPath).catch(() => sendJson(res, 500, { error: "server error" }));
     return;
+  }
+  if (urlPath.startsWith("/evm/") && urlPath.endsWith("/erc20-signatures.json")) {
+    return serveErc20Signatures(res, urlPath);
   }
   serveStatic(req, res, urlPath);
 });

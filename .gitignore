@@ -5,6 +5,6 @@ dist/
 .env
 # Speculos Ethereum app binary for local real-signing (see docs/speculos.md)
 apps/
-# Built Ethereum app + its build workdir (see infra/clearsign-app/build.sh)
-infra/speculos/ethereum.elf
+# Built test-key clear-signing app + its build workdir (see infra/clearsign-app)
+infra/speculos/ethereum-clearsign.elf
 infra/clearsign-app/.app-ethereum/
