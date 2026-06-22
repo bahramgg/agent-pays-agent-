@@ -19,12 +19,13 @@ This is a friendly complement to x402 and Coinbase's onchain tooling. It shows
 how agent-to-agent payments can feel when the signing key lives in hardware.
 Nothing here is "versus" anything.
 
-> **Real 402, real EIP-712, simulated signature and settlement.**
-> The HTTP 402 and its x402 terms are real (Base, USDC, amount, payTo, nonce,
-> expiry). The EIP-712 `transferWithAuthorization` message is constructed for
-> real. The signature is produced by a **simulated** signer so the demo runs
-> anywhere, and settlement is simulated. No real funds move. A later phase flips
-> `USE_REAL_SIGNER=true` to sign on the Ledger Speculos emulator.
+> **Real 402, real EIP-712, real clear-sign signature (test seed), simulated
+> settlement.** The HTTP 402 and its x402 terms are real (Base, USDC, amount,
+> payTo, nonce, expiry). The EIP-712 `transferWithAuthorization` message is
+> constructed for real. By default the signature is produced by a **simulated**
+> signer so the demo runs anywhere; with `USE_REAL_SIGNER=true` it is a **real**
+> EIP-712 clear-sign signature on the Ledger Speculos emulator (test seed, see
+> below). Settlement is simulated. No real funds move.
 
 ---
 
@@ -57,22 +58,36 @@ Nothing here is "versus" anything.
 
 The signer is behind one switch (`USE_REAL_SIGNER`). With it off (default), the
 signature is simulated. With it **on**, `POST /api/sign` produces a **real**
-EIP-712 x402 signature on the Ledger **Speculos** emulator with **clear
-signing**, through the **Ledger Device Management Kit** (the layer the Ledger
-Agent Stack recommends): `server/ledgerSigner.mjs` uses
-`@ledgerhq/device-management-kit` + `@ledgerhq/device-transport-kit-speculos`
-(HTTP transport to a hosted Speculos) + `@ledgerhq/device-signer-kit-ethereum`
-(`signTypedData`) + `@ledgerhq/context-module` (clear-signing descriptor). The
-device shows the curated Circle USDC fields (From / To / Amount) from the signed
-ERC-7730 descriptor and you approve exactly what is signed; the signature is then
-verified to recover to the Ledger address with `ethers`. The Context Module fetches
-that descriptor dynamically from Ledger's CAL service, so there is nothing to
-bundle and no blind signing. Run the signer from a normal (non-datacenter) network
-so the CAL is reachable; Ledger's CAL edge blocks datacenter IPs, so a local run is
-the simplest way to get fully dynamic clear signing. The Ledger SDK and `ethers`
-are optional dependencies loaded lazily, so the simulated build is unaffected. If
-Speculos is not reachable in real mode, the UI shows a friendly error and never
-fakes a signature. See [`docs/speculos.md`](./docs/speculos.md) for the local steps.
+EIP-712 x402 signature on the Ledger **Speculos** emulator with **curated clear
+signing** -- the device shows **From / To / Amount "0.01 USDC"** and you approve
+exactly what is signed; the signature is then verified to recover to the Ledger
+address with `ethers`. `server/ledgerSigner.mjs` drives the official Ledger SDK
+(`@ledgerhq/hw-app-eth`) over a tiny HTTP transport to Speculos.
+
+### Clear signing with no Ledger CAL (fully local)
+
+Curated clear signing normally needs a Ledger-signed ERC-7730 descriptor. The one
+for Circle USDC `transferWithAuthorization` (x402) exists in
+[Ledger's registry](https://github.com/LedgerHQ/clear-signing-erc7730-registry/blob/master/registry/circle/eip712-TransferWithAuthorization.json),
+but its signed filters are served only behind a **gated CAL token** (every
+unauthenticated fetch returns `Not Authorized` -- an auth gate, not geo-blocking).
+So instead of depending on Ledger's CAL at runtime, this repo reproduces what
+Ledger's own app/CI does for tests:
+
+1. **Build a test-key Speculos app** with `CAL_TEST_KEY=1` so it trusts the
+   **public** clear-signing test key (`cal.pem`) -- `infra/clearsign-app/build.sh`.
+2. **Sign the filters + USDC token info ourselves** with that same public key --
+   `infra/clearsign-app/gen-filters.mjs` emits `server/eip712-usdc-base-filters.json`
+   and `server/erc20-signatures.json`.
+3. The signer injects them via `staticEIP712SignaturesV2` and serves the token
+   info locally, so **nothing hits Ledger's CAL: no gating token, no blind signing.**
+
+This is a Speculos-only test-key app and is never used with real funds. The Ledger
+SDK and `ethers` are optional dependencies loaded lazily, so the simulated build is
+unaffected. If Speculos is unreachable in real mode, the UI shows a friendly error
+and never fakes a signature. Full local steps:
+[`docs/speculos.md`](./docs/speculos.md) and
+[`infra/clearsign-app/README.md`](./infra/clearsign-app/README.md).
 
 ## Tech
 
@@ -97,8 +112,16 @@ src/
   engine.ts    # walk-in entrance, scene script, tabs, status, DOM wiring
   main.ts      # entry: start the engine
 server.js      # static server + x402 API (/api/config, /api/weather, /api/sign)
+server/
+  ledgerSigner.mjs            # real clear signing on Speculos via hw-app-eth
+  eip712-usdc-base-filters.json  # bundled filter descriptor (test-key signed)
+  erc20-signatures.json          # bundled USDC token info (test-key signed)
+infra/
+  speculos/                   # Speculos Dockerfile + the built clear-signing app
+  clearsign-app/              # build the CAL_TEST_KEY app + gen-filters.mjs + cal.pem
 build.mjs      # esbuild: bundle + copy static assets -> dist/
-render.yaml    # Render Blueprint for one-click deploy
+docker-compose.yml  # one command: Speculos (test-key app) + the web app
+render.yaml    # Render Blueprint (deploys the simulated demo)
 ```
 
 ## Run it locally
@@ -111,11 +134,27 @@ npm start        # http://localhost:3000   (or: npm run dev)
 
 Custom port: `PORT=8080 npm start`. Type check: `npm run typecheck`.
 
+## Run real clear signing locally (Docker)
+
+This signs on a real Ledger Ethereum app in the Speculos emulator, fully offline.
+
+```bash
+./infra/clearsign-app/build.sh   # once: build the CAL_TEST_KEY Speculos app
+docker compose up                # Speculos + the web app
+```
+
+Then open `http://localhost:3000` (the app) and `http://localhost:5000` (the
+Speculos device, where you approve). The device shows **From / To / Amount
+"0.01 USDC"** -- no Ledger CAL, no gating token, no blind signing. Regenerate the
+bundled filters with `node infra/clearsign-app/gen-filters.mjs`. See
+[`docs/speculos.md`](./docs/speculos.md).
+
 ## Deploy on Render
 
-This repo ships a [`render.yaml`](./render.yaml) Blueprint, so it deploys like
-any small Node web service: **New > Blueprint**, point it at the repo. Render
-runs `npm install && npm run build`, then `npm start`, and injects `PORT`.
+The [`render.yaml`](./render.yaml) Blueprint deploys the **simulated** demo (the
+cartoon + real 402 + EIP-712, with a simulated signature): **New > Blueprint**,
+point it at the repo. Real clear signing needs the local Speculos build above and
+does not run hosted.
 
 ## What to check
 
