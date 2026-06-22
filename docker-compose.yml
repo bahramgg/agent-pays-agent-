@@ -1,16 +1,18 @@
-# One-command local run with REAL Ledger clear signing.
+# One-command local run with REAL Ledger clear signing -- fully offline.
 #
-#   docker compose up
+#   1. ./infra/clearsign-app/build.sh   (once: builds the test-key app)
+#   2. docker compose up
 #
 # Then open http://localhost:3000 (the app) and http://localhost:5000 (the
-# Speculos device, where you approve). Signing goes through the Device
-# Management Kit; the clear-signing descriptor is fetched dynamically from
-# Ledger's CAL. Run this on a normal home/office network (not a datacenter) so
-# the CAL is reachable. Nothing is bundled and there is no blind signing.
+# Speculos device, where you approve). The clear-signing filters for the x402
+# USDC message are signed locally with the public test key (cal.pem), and the
+# Speculos app is built to trust that key, so the device shows the curated
+# From / To / Amount view with NO Ledger CAL, no gating token, and no blind
+# signing. See infra/clearsign-app/README.md.
 services:
   speculos:
     image: ghcr.io/ledgerhq/speculos:latest
-    command: --model nanosp --display headless --api-port 5000 /apps/ethereum.elf
+    command: --model nanosp --display headless --api-port 5000 /apps/ethereum-clearsign.elf
     volumes:
       - ./infra/speculos:/apps:ro
     ports:
