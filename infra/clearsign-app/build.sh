@@ -44,15 +44,17 @@ fi
 echo "==> Building with CAL_TEST_KEY=1 for $BOLOS_TARGET (this takes a few minutes)"
 # Resolve the SDK path INSIDE the container (single-quoted body), so the env var
 # is expanded where it is defined rather than on the host.
-docker run --rm -e BT="$BOLOS_TARGET" -v "$WORK:/app" "$BUILDER_IMAGE" bash -c '
+# bash -lc (login shell) so the image's SDK env vars are populated. The nano S+
+# target ("nanos2") uses the NANOSP_SDK path (/opt/nanosplus-secure-sdk).
+docker run --rm -e BT="$BOLOS_TARGET" -v "$WORK:/app" "$BUILDER_IMAGE" bash -lc '
   set -e
   cd /app
   case "$BT" in
-    nanos2) SDK="$NANOS2_SDK" ;;
-    nanox)  SDK="$NANOX_SDK" ;;
-    nanos)  SDK="$NANOS_SDK" ;;
-    stax)   SDK="$STAX_SDK" ;;
-    flex)   SDK="$FLEX_SDK" ;;
+    nanos2|nanosp) SDK="$NANOSP_SDK" ;;
+    nanox)         SDK="$NANOX_SDK" ;;
+    nanos)         SDK="$NANOS_SDK" ;;
+    stax)          SDK="$STAX_SDK" ;;
+    flex)          SDK="$FLEX_SDK" ;;
     *) echo "Unknown BOLOS target: $BT" >&2; exit 1 ;;
   esac
   if [ -z "$SDK" ]; then echo "SDK env var empty for $BT" >&2; exit 1; fi
@@ -61,9 +63,9 @@ docker run --rm -e BT="$BOLOS_TARGET" -v "$WORK:/app" "$BUILDER_IMAGE" bash -c '
   make -j CAL_TEST_KEY=1 BOLOS_SDK="$SDK"
 '
 
-SRC_ELF="$WORK/build/$BOLOS_TARGET/bin/app.elf"
-if [ ! -f "$SRC_ELF" ]; then
-  echo "!! Build did not produce $SRC_ELF" >&2
+SRC_ELF="$(find "$WORK/build" -name app.elf 2>/dev/null | head -n1)"
+if [ -z "$SRC_ELF" ] || [ ! -f "$SRC_ELF" ]; then
+  echo "!! Build did not produce an app.elf under $WORK/build" >&2
   exit 1
 fi
 cp "$SRC_ELF" "$OUT"
